@@ -1,3 +1,3 @@
-DiyyMusic 0.7.0
+DiyyMusic 0.7.1
 versionCode=10
 channel=full-ui-rebuild

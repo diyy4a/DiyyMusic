@@ -1,4 +1,4 @@
-# DiyyMusic v0.7.0 visual reference
+# DiyyMusic v0.7.1 visual reference
 
 The active interface follows the user-approved DiyyMusic mockups generated from the supplied official pink music-note logo.
 

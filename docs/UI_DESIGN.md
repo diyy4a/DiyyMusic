@@ -1,6 +1,6 @@
 # DiyyMusic UI Design
 
-The v0.7.0 interface follows the approved pink-and-white premium design:
+The v0.7.1 interface follows the approved pink-and-white premium design:
 
 - Official pink music-note branding
 - Light canvas with restrained pink accents

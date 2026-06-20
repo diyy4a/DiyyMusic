@@ -184,7 +184,7 @@ fun ProfileScreen(
                 }
                 item {
                     DiyyStatCard(
-                        value = "0.7.0",
+                        value = "0.7.1",
                         label = "Version",
                         icon = R.drawable.info,
                         modifier = Modifier.width(116.dp),
@@ -268,7 +268,7 @@ fun ProfileScreen(
                 FigmaDivider()
                 FigmaSettingsRow(
                     title = "About DiyyMusic",
-                    subtitle = "Version 0.7.0 Full UI Rebuild",
+                    subtitle = "Version 0.7.1 Build Fix",
                     icon = R.drawable.info,
                     onClick = onOpenSettings,
                 )

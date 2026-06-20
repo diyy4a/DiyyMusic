@@ -1,4 +1,4 @@
-name: Build DiyyMusic v0.7.0 APK
+name: Build DiyyMusic v0.7.1 APK
 
 on:
   workflow_dispatch:
@@ -31,15 +31,26 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Create persistent debug keystore
+      - name: Prepare persistent debug keystore
         run: |
-          keytool -genkeypair -v \
-            -keystore app/persistent-debug.keystore \
-            -storepass android \
-            -alias androiddebugkey \
-            -keypass android \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Android Debug,O=DiyyMusic,C=ID"
+          set -e
+          KEYSTORE="app/persistent-debug.keystore"
+          ALIAS="androiddebugkey"
+
+          if [ -f "$KEYSTORE" ] && \
+             keytool -list -keystore "$KEYSTORE" -storepass android -alias "$ALIAS" >/dev/null 2>&1; then
+            echo "Valid persistent debug keystore already exists; reusing it."
+          else
+            echo "Persistent debug keystore is missing or invalid; creating a new one."
+            rm -f "$KEYSTORE"
+            keytool -genkeypair -v \
+              -keystore "$KEYSTORE" \
+              -storepass android \
+              -alias "$ALIAS" \
+              -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=DiyyMusic,C=ID"
+          fi
 
       - name: Build slim APK
         run: |
@@ -55,6 +66,6 @@ jobs:
       - name: Upload APK only
         uses: actions/upload-artifact@v4
         with:
-          name: DiyyMusic-v0.7.0-APK
+          name: DiyyMusic-v0.7.1-APK
           path: app/build/outputs/apk/foss/debug/*.apk
           if-no-files-found: error
