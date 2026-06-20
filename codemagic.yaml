@@ -1,0 +1,54 @@
+workflows:
+  diyymusic-installable-apk:
+    name: DiyyMusic v0.6.1 APK
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+
+    environment:
+      java: 21
+      vars:
+        DIYYMUSIC_APP_NAME: "DiyyMusic"
+        DIYYMUSIC_APPLICATION_ID: "com.diyy.music"
+        DIYYMUSIC_ABI: "armeabi-v7a"
+
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
+        - $HOME/.gradle/wrapper
+        - $CM_BUILD_DIR/.gradle
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+      cancel_previous_builds: true
+
+    scripts:
+      - name: Prepare build environment
+        script: |
+          chmod +x gradlew
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
+          java -version
+          ./gradlew --version
+
+      - name: Build installable FOSS APK
+        script: |
+          ./gradlew --no-daemon --max-workers=2 :app:assembleFossDebug
+
+      - name: Collect only the final APK
+        script: |
+          set -e
+          APK_PATH=$(find app/build/outputs/apk/foss/debug -type f -name "*.apk" | head -n 1)
+          if [ -z "$APK_PATH" ]; then
+            echo "APK was not generated"
+            exit 1
+          fi
+          mkdir -p build-artifacts
+          cp "$APK_PATH" "build-artifacts/DiyyMusic-v0.6.1-armeabi-v7a.apk"
+          ls -lh build-artifacts/
+
+    artifacts:
+      - build-artifacts/*.apk

@@ -1,0 +1,2 @@
+DiyyMusic 0.6.1
+Full Figma UI rebuild; backend preserved.
