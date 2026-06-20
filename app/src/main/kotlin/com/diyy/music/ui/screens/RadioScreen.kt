@@ -32,6 +32,7 @@ private val internationalStations = listOf(
 
 @Composable
 fun RadioScreen(
+    onBack: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenHistory: () -> Unit,
     onSearchStation: (String) -> Unit,
@@ -44,6 +45,7 @@ fun RadioScreen(
         item {
             DiyyScreenHeader(
                 title = "Radio",
+                onBack = onBack,
                 onHistory = onOpenHistory,
                 onProfile = onOpenProfile,
             )

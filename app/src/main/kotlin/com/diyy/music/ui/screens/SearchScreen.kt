@@ -1,6 +1,5 @@
 package com.diyy.music.ui.screens
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,7 +15,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -33,6 +34,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.painterResource
@@ -55,22 +58,25 @@ import com.diyy.music.playback.queues.YouTubeQueue
 import com.diyy.music.ui.component.DiyyScreenHeader
 import com.diyy.music.ui.component.EmptyFigmaState
 import com.diyy.music.ui.component.FigmaMediaRow
+import com.diyy.music.ui.component.FigmaSectionHeader
+import com.diyy.music.ui.component.LiquidGlassBox
 import com.diyy.music.ui.theme.DiyyRed
+import com.diyy.music.ui.theme.DiyySoftRed
 import com.diyy.music.viewmodels.OnlineSearchSuggestionViewModel
 
 private data class SearchCategory(
     val title: String,
+    val subtitle: String,
     val icon: Int,
+    val colors: List<Color>,
 )
 
 private val searchCategories = listOf(
-    SearchCategory("Bollywood", R.drawable.music_note),
-    SearchCategory("Punjabi", R.drawable.graphic_eq),
-    SearchCategory("Hip - Hop", R.drawable.trending_up),
-    SearchCategory("Rock", R.drawable.radio_button_checked),
-    SearchCategory("Classical", R.drawable.artist),
-    SearchCategory("Pop", R.drawable.music_note),
-    SearchCategory("Charts", R.drawable.stats),
+    SearchCategory("Pop", "Popular hits", R.drawable.favorite, listOf(Color(0xFFFFB7D0), Color(0xFFFFE4ED))),
+    SearchCategory("Chill", "Slow & dreamy", R.drawable.cloud, listOf(Color(0xFFD5BCFF), Color(0xFFF0E8FF))),
+    SearchCategory("Indie", "Fresh finds", R.drawable.radio, listOf(Color(0xFFFFD2B6), Color(0xFFFFEEE1))),
+    SearchCategory("Anime", "J-pop & OST", R.drawable.artist, listOf(Color(0xFFBFD1FF), Color(0xFFE8EEFF))),
+    SearchCategory("Focus", "Stay in flow", R.drawable.bedtime, listOf(Color(0xFFBDEADF), Color(0xFFE4F8F3))),
 )
 
 @Composable
@@ -118,81 +124,134 @@ fun SearchScreen(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 18.dp),
+        contentPadding = PaddingValues(bottom = 24.dp),
     ) {
-        item { DiyyScreenHeader(title = "Categories") }
+        item { DiyyScreenHeader(title = "Search") }
         item {
             SearchField(
                 value = query,
                 onValueChange = { query = it },
                 onSearch = { submittedQuery = query.trim() },
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp),
             )
         }
 
         if (query.isBlank()) {
-            val pairs = searchCategories.chunked(2)
-            items(pairs, key = { row -> row.joinToString { it.title } }) { row ->
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+            item {
+                FigmaSectionHeader(
+                    title = "Browse Categories",
+                    actionText = "See All",
+                    onAction = {},
+                    modifier = Modifier.padding(top = 10.dp),
+                )
+            }
+            item {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    row.forEachIndexed { index, category ->
+                    items(searchCategories, key = { it.title }) { category ->
                         CategoryCard(
                             category = category,
-                            onClick = { query = category.title; submittedQuery = category.title },
-                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                query = category.title
+                                submittedQuery = category.title
+                            },
                         )
                     }
-                    if (row.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
+
+            item { FigmaSectionHeader(title = "Discover") }
+            item {
+                LiquidGlassBox(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp)
+                        .height(118.dp),
+                    shape = RoundedCornerShape(28.dp),
+                    elevation = 10.dp,
+                    onClick = {
+                        query = "Trending music"
+                        submittedQuery = query
+                    },
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(18.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(Color(0xFFFF88AF), DiyyRed),
+                                    ),
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.trending_up),
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(34.dp),
+                            )
+                        }
+                        Spacer(Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Trending right now",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(
+                                text = "Find songs everyone is playing today.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Icon(
+                            painter = painterResource(R.drawable.navigate_next),
+                            contentDescription = null,
+                            tint = DiyyRed,
+                        )
+                    }
                 }
             }
         } else {
             if (state.history.isNotEmpty()) {
-                item {
-                    Text(
-                        text = "Recent Searches",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                    )
-                }
+                item { FigmaSectionHeader(title = "Recent Searches") }
                 items(state.history.take(3), key = { it.id }) { history ->
                     SuggestionRow(
                         text = history.query,
                         icon = R.drawable.history,
-                        onClick = { query = history.query; submittedQuery = history.query },
+                        onClick = {
+                            query = history.query
+                            submittedQuery = history.query
+                        },
                     )
                 }
             }
 
-            if (state.suggestions.isNotEmpty()) {
-                item {
-                    Text(
-                        text = "Suggestions",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                    )
-                }
+            if (state.suggestions.isNotEmpty() && submittedQuery.isBlank()) {
+                item { FigmaSectionHeader(title = "Suggestions") }
                 items(state.suggestions.take(8), key = { it }) { suggestion ->
                     SuggestionRow(
                         text = suggestion,
                         icon = R.drawable.search,
-                        onClick = { query = suggestion; submittedQuery = suggestion },
+                        onClick = {
+                            query = suggestion
+                            submittedQuery = suggestion
+                        },
                     )
                 }
             }
 
             if (displayResults.isNotEmpty()) {
-                item {
-                    Text(
-                        text = "Top Results",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                    )
-                }
+                item { FigmaSectionHeader(title = "Top Results") }
                 items(displayResults, key = { it.id }) { item ->
                     FigmaMediaRow(
                         title = item.title,
@@ -242,25 +301,26 @@ private fun SearchField(
     onSearch: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
+    LiquidGlassBox(
         modifier = modifier
             .fillMaxWidth()
-            .height(48.dp),
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
+            .height(58.dp),
+        shape = RoundedCornerShape(24.dp),
+        elevation = 10.dp,
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 painter = painterResource(R.drawable.search),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(21.dp),
+                tint = DiyyRed,
+                modifier = Modifier.size(23.dp),
             )
-            Spacer(Modifier.width(9.dp))
+            Spacer(Modifier.width(11.dp))
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
@@ -274,7 +334,7 @@ private fun SearchField(
                     Box(contentAlignment = Alignment.CenterStart) {
                         if (value.isBlank()) {
                             Text(
-                                "Search music",
+                                text = "Search songs, artists, albums…",
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -283,12 +343,19 @@ private fun SearchField(
                     }
                 },
             )
-            Icon(
-                painter = painterResource(R.drawable.language),
-                contentDescription = null,
-                tint = DiyyRed,
-                modifier = Modifier.size(20.dp),
-            )
+            Surface(
+                modifier = Modifier.size(34.dp),
+                shape = CircleShape,
+                color = DiyySoftRed,
+                onClick = onSearch,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.mic),
+                    contentDescription = "Search",
+                    tint = DiyyRed,
+                    modifier = Modifier.padding(8.dp),
+                )
+            }
         }
     }
 }
@@ -297,30 +364,41 @@ private fun SearchField(
 private fun CategoryCard(
     category: SearchCategory,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
-    Surface(
-        modifier = modifier.height(96.dp),
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        onClick = onClick,
+    Box(
+        modifier = Modifier
+            .width(126.dp)
+            .height(150.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .background(Brush.verticalGradient(category.colors))
+            .clickable(onClick = onClick)
+            .padding(15.dp),
     ) {
-        Column(
-            modifier = Modifier.padding(10.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
+        Box(
+            modifier = Modifier
+                .size(54.dp)
+                .clip(RoundedCornerShape(19.dp))
+                .background(Color.White.copy(alpha = 0.58f))
+                .align(Alignment.TopStart),
+            contentAlignment = Alignment.Center,
         ) {
+            Icon(
+                painter = painterResource(category.icon),
+                contentDescription = null,
+                tint = DiyyRed,
+                modifier = Modifier.size(28.dp),
+            )
+        }
+        Column(modifier = Modifier.align(Alignment.BottomStart)) {
             Text(
                 text = category.title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
             )
-            Icon(
-                painter = painterResource(category.icon),
-                contentDescription = null,
-                tint = DiyyRed,
-                modifier = Modifier
-                    .size(24.dp)
-                    .align(Alignment.End),
+            Text(
+                text = category.subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -332,21 +410,30 @@ private fun SuggestionRow(
     icon: Int,
     onClick: () -> Unit,
 ) {
-    Row(
+    LiquidGlassBox(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 18.dp, vertical = 4.dp)
+            .height(54.dp),
+        shape = RoundedCornerShape(18.dp),
+        elevation = 4.dp,
+        onClick = onClick,
     ) {
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = null,
-            tint = DiyyRed,
-            modifier = Modifier.size(20.dp),
-        )
-        Spacer(Modifier.width(12.dp))
-        Text(text, style = MaterialTheme.typography.bodyLarge)
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = painterResource(icon),
+                contentDescription = null,
+                tint = DiyyRed,
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(text, style = MaterialTheme.typography.bodyLarge)
+        }
     }
 }
 

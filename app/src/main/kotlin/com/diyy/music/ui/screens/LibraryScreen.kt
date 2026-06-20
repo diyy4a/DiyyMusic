@@ -3,7 +3,6 @@ package com.diyy.music.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -21,10 +20,14 @@ import com.diyy.music.extensions.toMediaItem
 import com.diyy.music.playback.PlayerConnection
 import com.diyy.music.playback.queues.ListQueue
 import com.diyy.music.ui.component.DiyyScreenHeader
+import com.diyy.music.ui.component.DiyyStatCard
 import com.diyy.music.ui.component.EmptyFigmaState
-import com.diyy.music.ui.component.FigmaLibraryShortcut
+import com.diyy.music.ui.component.FigmaDivider
+import com.diyy.music.ui.component.FigmaGroupedList
 import com.diyy.music.ui.component.FigmaMediaGridItem
+import com.diyy.music.ui.component.FigmaMediaRow
 import com.diyy.music.ui.component.FigmaSectionHeader
+import com.diyy.music.ui.component.FigmaSettingsRow
 
 @Composable
 fun LibraryScreen(
@@ -50,7 +53,7 @@ fun LibraryScreen(
 
     LazyColumn(
         modifier = modifier,
-        contentPadding = PaddingValues(bottom = 18.dp),
+        contentPadding = PaddingValues(bottom = 24.dp),
     ) {
         item {
             DiyyScreenHeader(
@@ -61,65 +64,90 @@ fun LibraryScreen(
         }
 
         item {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                FigmaLibraryShortcut(
-                    title = "Songs",
-                    icon = R.drawable.music_note,
-                    selected = true,
-                    onClick = { onOpenCollection("songs") },
-                    modifier = Modifier.weight(1f),
-                )
-                FigmaLibraryShortcut(
-                    title = "Albums",
-                    icon = R.drawable.album,
-                    selected = false,
-                    onClick = { onOpenCollection("albums") },
-                    modifier = Modifier.weight(1f),
-                )
+                item {
+                    DiyyStatCard(
+                        value = songs.size.toString(),
+                        label = "Songs",
+                        icon = R.drawable.music_note,
+                        modifier = Modifier.width(116.dp),
+                    )
+                }
+                item {
+                    DiyyStatCard(
+                        value = playlists.size.toString(),
+                        label = "Playlists",
+                        icon = R.drawable.queue_music,
+                        modifier = Modifier.width(116.dp),
+                    )
+                }
+                item {
+                    DiyyStatCard(
+                        value = albums.size.toString(),
+                        label = "Albums",
+                        icon = R.drawable.album,
+                        modifier = Modifier.width(116.dp),
+                    )
+                }
+                item {
+                    DiyyStatCard(
+                        value = artists.size.toString(),
+                        label = "Artists",
+                        icon = R.drawable.artist,
+                        modifier = Modifier.width(116.dp),
+                    )
+                }
             }
         }
+
         item {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            FigmaSectionHeader(
+                title = "Your Library",
+                actionText = "Display",
+                onAction = onOpenDisplayOptions,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
+        item {
+            FigmaGroupedList(
+                modifier = Modifier.padding(horizontal = 18.dp),
             ) {
-                FigmaLibraryShortcut(
-                    title = "Playlists",
-                    icon = R.drawable.queue_music,
-                    selected = false,
-                    onClick = { onOpenCollection("playlists") },
-                    modifier = Modifier.weight(1f),
-                )
-                FigmaLibraryShortcut(
-                    title = "Favorites",
+                FigmaSettingsRow(
+                    title = "Liked Songs",
+                    subtitle = "Your favorite tracks",
                     icon = R.drawable.favorite,
-                    selected = false,
                     onClick = { onOpenCollection("favorites") },
-                    modifier = Modifier.weight(1f),
                 )
-            }
-        }
-        item {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                FigmaLibraryShortcut(
+                FigmaDivider()
+                FigmaSettingsRow(
+                    title = "Playlists",
+                    subtitle = "${playlists.size} playlists",
+                    icon = R.drawable.queue_music,
+                    onClick = { onOpenCollection("playlists") },
+                )
+                FigmaDivider()
+                FigmaSettingsRow(
+                    title = "Albums",
+                    subtitle = "${albums.size} albums",
+                    icon = R.drawable.album,
+                    onClick = { onOpenCollection("albums") },
+                )
+                FigmaDivider()
+                FigmaSettingsRow(
                     title = "Artists",
+                    subtitle = "${artists.size} artists",
                     icon = R.drawable.artist,
-                    selected = false,
                     onClick = { onOpenCollection("artists") },
-                    modifier = Modifier.weight(1f),
                 )
-                FigmaLibraryShortcut(
-                    title = "Display",
-                    icon = R.drawable.tune,
-                    selected = false,
-                    onClick = onOpenDisplayOptions,
-                    modifier = Modifier.weight(1f),
+                FigmaDivider()
+                FigmaSettingsRow(
+                    title = "All Songs",
+                    subtitle = "${songs.size} songs",
+                    icon = R.drawable.library_music,
+                    onClick = { onOpenCollection("songs") },
                 )
             }
         }
@@ -127,7 +155,7 @@ fun LibraryScreen(
         item {
             FigmaSectionHeader(
                 title = "Recently Added",
-                actionText = "›",
+                actionText = "See All ›",
                 onAction = { onOpenCollection("songs") },
             )
         }
@@ -142,8 +170,8 @@ fun LibraryScreen(
         } else {
             item {
                 LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(horizontal = 18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     items(recentSongs, key = { it.id }) { song ->
                         FigmaMediaGridItem(
@@ -159,113 +187,36 @@ fun LibraryScreen(
                                     ),
                                 )
                             },
-                            modifier = Modifier.fillParentMaxWidth(0.38f),
+                            modifier = Modifier.fillParentMaxWidth(0.41f),
                         )
                     }
                 }
             }
         }
 
-        item {
-            FigmaSectionHeader(
-                title = "Recently Played",
-                actionText = "›",
-                onAction = onOpenHistory,
-            )
-        }
-        if (recentlyPlayed.isEmpty()) {
+        if (recentlyPlayed.isNotEmpty()) {
             item {
-                EmptyFigmaState(
-                    title = "No listening history",
-                    subtitle = "Play something and DiyyMusic will remember it here.",
-                    icon = R.drawable.history,
+                FigmaSectionHeader(
+                    title = "Recently Played",
+                    actionText = "History ›",
+                    onAction = onOpenHistory,
                 )
             }
-        } else {
-            item {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(recentlyPlayed, key = { it.id }) { song ->
-                        FigmaMediaGridItem(
-                            title = song.title,
-                            subtitle = song.orderedArtists.joinToString { it.name },
-                            imageUrl = song.thumbnailUrl,
-                            onClick = {
-                                playerConnection?.playQueue(
-                                    ListQueue(
-                                        title = "Recently Played",
-                                        items = recentlyPlayed.map { it.toMediaItem() },
-                                        startIndex = recentlyPlayed.indexOf(song),
-                                    ),
-                                )
-                            },
-                            modifier = Modifier.fillParentMaxWidth(0.38f),
+            items(recentlyPlayed.take(5), key = { it.id }) { song ->
+                FigmaMediaRow(
+                    title = song.title,
+                    subtitle = song.orderedArtists.joinToString { it.name },
+                    imageUrl = song.thumbnailUrl,
+                    onClick = {
+                        playerConnection?.playQueue(
+                            ListQueue(
+                                title = "Recently Played",
+                                items = recentlyPlayed.map { it.toMediaItem() },
+                                startIndex = recentlyPlayed.indexOf(song),
+                            ),
                         )
-                    }
-                }
-            }
-        }
-
-        if (albums.isNotEmpty()) {
-            item { FigmaSectionHeader(title = "Albums") }
-            item {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(albums.take(10), key = { it.id }) { album ->
-                        FigmaMediaGridItem(
-                            title = album.title,
-                            subtitle = album.artists.joinToString { it.name },
-                            imageUrl = album.thumbnailUrl,
-                            onClick = { onOpenCollection("album:${album.id}") },
-                            modifier = Modifier.fillParentMaxWidth(0.38f),
-                        )
-                    }
-                }
-            }
-        }
-
-        if (artists.isNotEmpty()) {
-            item { FigmaSectionHeader(title = "Artists") }
-            item {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(artists.take(10), key = { it.id }) { artist ->
-                        FigmaMediaGridItem(
-                            title = artist.title,
-                            subtitle = "${artist.songCount} songs",
-                            imageUrl = artist.thumbnailUrl,
-                            onClick = { onOpenCollection("artist:${artist.id}") },
-                            circular = true,
-                            modifier = Modifier.fillParentMaxWidth(0.38f),
-                        )
-                    }
-                }
-            }
-        }
-
-        if (playlists.isNotEmpty()) {
-            item { FigmaSectionHeader(title = "Playlists") }
-            item {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(playlists.take(10), key = { it.id }) { playlist ->
-                        FigmaMediaGridItem(
-                            title = playlist.title,
-                            subtitle = "${playlist.songCount} songs",
-                            imageUrl = playlist.thumbnails.firstOrNull(),
-                            onClick = { onOpenCollection("playlist:${playlist.id}") },
-                            modifier = Modifier.fillParentMaxWidth(0.38f),
-                        )
-                    }
-                }
+                    },
+                )
             }
         }
     }

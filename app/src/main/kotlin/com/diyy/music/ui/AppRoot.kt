@@ -15,7 +15,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -43,7 +45,6 @@ import com.diyy.music.ui.screens.RadioScreen
 import com.diyy.music.ui.screens.SearchScreen
 import com.diyy.music.ui.screens.SettingDetailScreen
 import com.diyy.music.ui.screens.SettingsScreen
-import androidx.datastore.preferences.core.edit
 import com.diyy.music.utils.dataStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -78,11 +79,12 @@ fun DiyyMusicRoot(
         when (requestedRoute) {
             "search" -> navigateToTab(navController, DiyyMainTab.SEARCH)
             "library" -> navigateToTab(navController, DiyyMainTab.LIBRARY)
-            "radio" -> navigateToTab(navController, DiyyMainTab.RADIO)
+            "profile" -> navigateToTab(navController, DiyyMainTab.PROFILE)
+            "radio" -> navController.navigate(DiyyRoutes.RADIO)
             "home", "listen_now" -> navigateToTab(navController, DiyyMainTab.LISTEN_NOW)
             "player" -> navController.navigate(DiyyRoutes.PLAYER)
             else -> if (requestedRoute?.startsWith("collection/") == true) {
-                val type = requestedRoute!!.substringAfter("collection/")
+                val type = requestedRoute.substringAfter("collection/")
                 openCollection(navController, type)
             }
         }
@@ -119,29 +121,10 @@ fun DiyyMusicRoot(
             composable(DiyyMainTab.LISTEN_NOW.route) {
                 ListenNowScreen(
                     playerConnection = playerConnection,
-                    onOpenProfile = { navController.navigate(DiyyRoutes.PROFILE) },
+                    onOpenProfile = { navigateToTab(navController, DiyyMainTab.PROFILE) },
                     onOpenHistory = { navController.navigate(DiyyRoutes.HISTORY) },
+                    onOpenRadio = { navController.navigate(DiyyRoutes.RADIO) },
                     onOpenCollection = { openCollection(navController, it) },
-                )
-            }
-            composable(DiyyMainTab.RADIO.route) {
-                RadioScreen(
-                    onOpenProfile = { navController.navigate(DiyyRoutes.PROFILE) },
-                    onOpenHistory = { navController.navigate(DiyyRoutes.HISTORY) },
-                    onSearchStation = { query ->
-                        searchSeed = query
-                        navigateToTab(navController, DiyyMainTab.SEARCH)
-                    },
-                )
-            }
-            composable(DiyyMainTab.LIBRARY.route) {
-                LibraryScreen(
-                    database = database,
-                    playerConnection = playerConnection,
-                    onOpenProfile = { navController.navigate(DiyyRoutes.PROFILE) },
-                    onOpenHistory = { navController.navigate(DiyyRoutes.HISTORY) },
-                    onOpenCollection = { openCollection(navController, it) },
-                    onOpenDisplayOptions = { navController.navigate(DiyyRoutes.DISPLAY_OPTIONS) },
                 )
             }
             composable(DiyyMainTab.SEARCH.route) {
@@ -151,12 +134,20 @@ fun DiyyMusicRoot(
                     onOpenCollection = { openCollection(navController, it) },
                 )
             }
-            composable(DiyyRoutes.PLAYER) {
-                PlayerScreen(playerConnection = playerConnection, onBack = navController::navigateUp)
+            composable(DiyyMainTab.LIBRARY.route) {
+                LibraryScreen(
+                    database = database,
+                    playerConnection = playerConnection,
+                    onOpenProfile = { navigateToTab(navController, DiyyMainTab.PROFILE) },
+                    onOpenHistory = { navController.navigate(DiyyRoutes.HISTORY) },
+                    onOpenRadio = { navController.navigate(DiyyRoutes.RADIO) },
+                    onOpenCollection = { openCollection(navController, it) },
+                    onOpenDisplayOptions = { navController.navigate(DiyyRoutes.DISPLAY_OPTIONS) },
+                )
             }
-            composable(DiyyRoutes.PROFILE) {
+            composable(DiyyMainTab.PROFILE.route) {
                 ProfileScreen(
-                    onBack = navController::navigateUp,
+                    onBack = null,
                     onOpenSettings = { navController.navigate(DiyyRoutes.SETTINGS) },
                     onOpenCollection = { openCollection(navController, it) },
                     onLogout = {
@@ -164,10 +155,23 @@ fun DiyyMusicRoot(
                             context.dataStore.edit { preferences ->
                                 preferences.remove(InnerTubeCookieKey)
                             }
-                            navController.navigateUp()
                         }
                     },
                 )
+            }
+            composable(DiyyRoutes.RADIO) {
+                RadioScreen(
+                    onBack = navController::navigateUp,
+                    onOpenProfile = { navigateToTab(navController, DiyyMainTab.PROFILE) },
+                    onOpenHistory = { navController.navigate(DiyyRoutes.HISTORY) },
+                    onSearchStation = { query ->
+                        searchSeed = query
+                        navigateToTab(navController, DiyyMainTab.SEARCH)
+                    },
+                )
+            }
+            composable(DiyyRoutes.PLAYER) {
+                PlayerScreen(playerConnection = playerConnection, onBack = navController::navigateUp)
             }
             composable(DiyyRoutes.SETTINGS) {
                 SettingsScreen(

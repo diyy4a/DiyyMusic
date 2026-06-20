@@ -63,7 +63,7 @@ fun SettingsScreen(
         item {
             FigmaSettingsRow(
                 title = "Account and session",
-                subtitle = "Profile, sign-in, and local session data",
+                subtitle = "Token, profile, sign-in, and session data",
                 icon = R.drawable.account,
                 onClick = { onOpenSection("account") },
             )

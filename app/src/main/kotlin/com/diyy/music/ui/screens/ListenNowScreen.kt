@@ -7,10 +7,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -36,13 +40,16 @@ import com.diyy.music.ui.component.FigmaMediaGridItem
 import com.diyy.music.ui.component.FigmaMediaRow
 import com.diyy.music.ui.component.FigmaPromoCard
 import com.diyy.music.ui.component.FigmaSectionHeader
+import com.diyy.music.ui.theme.DiyyRed
 import com.diyy.music.viewmodels.HomeViewModel
+import java.util.Calendar
 
 @Composable
 fun ListenNowScreen(
     playerConnection: PlayerConnection?,
     onOpenProfile: () -> Unit,
     onOpenHistory: () -> Unit,
+    onOpenRadio: () -> Unit,
     onOpenCollection: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
@@ -50,46 +57,42 @@ fun ListenNowScreen(
     val keepListening by viewModel.keepListening.collectAsStateWithLifecycle()
     val quickPicks by viewModel.quickPicks.collectAsStateWithLifecycle()
     val homePage by viewModel.homePage.collectAsStateWithLifecycle()
+    val greeting = remember {
+        when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
+            in 4..10 -> "Good morning"
+            in 11..15 -> "Good afternoon"
+            else -> "Good evening"
+        }
+    }
 
     LaunchedEffect(Unit) { viewModel.loadHomeData() }
 
     LazyColumn(
         modifier = modifier,
-        contentPadding = PaddingValues(bottom = 18.dp),
+        contentPadding = PaddingValues(bottom = 24.dp),
     ) {
         item {
             DiyyScreenHeader(
-                title = "Listen Now",
+                title = greeting,
                 onHistory = onOpenHistory,
                 onProfile = onOpenProfile,
             )
         }
-
         item {
-            FigmaPromoCard(
-                title = "Get 1 month of free\nmusic",
-                subtitle = "Try It Free",
-                footer = "1 month free then 99.00/month.",
-                onClick = { viewModel.refresh() },
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            )
-        }
-
-        item {
-            FigmaPromoCard(
-                title = "Play anything with Siri.\nOnly 49.00/month.",
-                subtitle = "Try It Free",
-                footer = "Listen without interruptions.",
-                onClick = { viewModel.refresh() },
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            Text(
+                text = "Let’s enjoy some music ✦",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 0.dp),
             )
         }
 
         item {
             FigmaSectionHeader(
                 title = "Recently Played",
-                actionText = "See All",
+                actionText = "See All ›",
                 onAction = { onOpenCollection("recent") },
+                modifier = Modifier.padding(top = 12.dp),
             )
         }
 
@@ -104,8 +107,8 @@ fun ListenNowScreen(
         } else {
             item {
                 LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(horizontal = 18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     items(recentItems, key = { it.id }) { item ->
                         FigmaMediaGridItem(
@@ -121,11 +124,37 @@ fun ListenNowScreen(
                                 }
                             },
                             circular = item is Artist,
-                            modifier = Modifier.fillParentMaxWidth(0.36f),
+                            modifier = Modifier.fillParentMaxWidth(0.41f),
                         )
                     }
                 }
             }
+        }
+
+        item { FigmaSectionHeader(title = "For You") }
+        item {
+            FigmaPromoCard(
+                title = "Your Daily Mix",
+                subtitle = "Made for you",
+                footer = "Fresh picks based on your listening",
+                onClick = {
+                    val picks = quickPicks.orEmpty()
+                    if (picks.isNotEmpty()) playLocalSong(playerConnection, picks, 0) else viewModel.refresh()
+                },
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 2.dp),
+            )
+        }
+
+        item {
+            FigmaSectionHeader(title = "Explore")
+        }
+        item {
+            FigmaMediaRow(
+                title = "DiyyMusic Radio",
+                subtitle = "Live and curated stations for every mood",
+                imageUrl = null,
+                onClick = onOpenRadio,
+            )
         }
 
         item {
@@ -156,11 +185,17 @@ fun ListenNowScreen(
         }
 
         homePage?.sections?.take(3)?.forEach { section ->
-            item { FigmaSectionHeader(title = section.title) }
+            item {
+                FigmaSectionHeader(
+                    title = section.title,
+                    actionText = "See All ›",
+                    onAction = {},
+                )
+            }
             item {
                 LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(horizontal = 18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     items(section.items.take(12), key = { it.id }) { item ->
                         FigmaMediaGridItem(
@@ -182,7 +217,7 @@ fun ListenNowScreen(
                                 }
                             },
                             circular = item is ArtistItem,
-                            modifier = Modifier.fillParentMaxWidth(0.36f),
+                            modifier = Modifier.fillParentMaxWidth(0.41f),
                         )
                     }
                 }

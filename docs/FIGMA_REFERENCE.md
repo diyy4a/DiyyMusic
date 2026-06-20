@@ -1,15 +1,15 @@
-# Figma UI reference
+# DiyyMusic v0.7.0 visual reference
 
-DiyyMusic 0.6.2 is rebuilt around the user-supplied **Apple Music Player Redesign (Community)** Figma file.
+The active interface follows the user-approved DiyyMusic mockups generated from the supplied official pink music-note logo.
 
 Mapped interface structure:
 
-- Listen Now editorial cards and horizontal media sections
-- Radio broadcaster sections
-- Library shortcuts and recently added content
-- Categories and search results
-- Minimal full-screen player
-- Profile and grouped settings lists
-- Four-tab bottom navigation: Listen Now, Radio, Library, Search
+- Premium Home screen with greeting, recent music, daily mix, and recommendations
+- Search screen with glass search field and pastel category cards
+- Library dashboard with stats, grouped shortcuts, and recent media
+- Profile screen with account/token access and app settings
+- Full-screen Now Playing view with large artwork and modern playback controls
+- Floating Liquid Glass mini player and four-tab navigation: Home, Search, Library, Profile
+- Clean playback and volume tracks without vertical line handles
 
-The backend data is mapped into those layouts. No previous MetroList screen or shared UI component is kept in the active UI source tree.
+The backend data and playback systems are mapped into the new layouts. No legacy MetroList-style screen is used as the active primary interface.

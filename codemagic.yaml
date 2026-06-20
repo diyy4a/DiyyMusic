@@ -1,6 +1,6 @@
 workflows:
   diyymusic-installable-apk:
-    name: DiyyMusic v0.6.2 APK
+    name: DiyyMusic v0.7.0 APK
     instance_type: mac_mini_m2
     max_build_duration: 120
 
@@ -34,6 +34,16 @@ workflows:
           java -version
           ./gradlew --version
 
+      - name: Create persistent debug keystore
+        script: |
+          keytool -genkeypair -v \
+            -keystore app/persistent-debug.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=DiyyMusic,C=ID"
+
       - name: Build installable FOSS APK
         script: |
           ./gradlew --no-daemon --max-workers=2 :app:assembleFossDebug
@@ -47,7 +57,7 @@ workflows:
             exit 1
           fi
           mkdir -p build-artifacts
-          cp "$APK_PATH" "build-artifacts/DiyyMusic-v0.6.2-armeabi-v7a.apk"
+          cp "$APK_PATH" "build-artifacts/DiyyMusic-v0.7.0-armeabi-v7a.apk"
           ls -lh build-artifacts/
 
     artifacts:
