@@ -1,6 +1,6 @@
 # Figma UI reference
 
-DiyyMusic 0.6.1 is rebuilt around the user-supplied **Apple Music Player Redesign (Community)** Figma file.
+DiyyMusic 0.6.2 is rebuilt around the user-supplied **Apple Music Player Redesign (Community)** Figma file.
 
 Mapped interface structure:
 

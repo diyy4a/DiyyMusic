@@ -57,6 +57,7 @@ import com.diyy.music.models.MediaMetadata
 import com.diyy.music.ui.DiyyMainTab
 import com.diyy.music.ui.theme.DiyyDivider
 import com.diyy.music.ui.theme.DiyyRed
+import com.diyy.music.ui.theme.DiyyRedStrong
 import com.diyy.music.ui.theme.DiyySurface
 import com.diyy.music.utils.dataStore
 import kotlinx.coroutines.flow.map
