@@ -1,8 +1,7 @@
 package com.diyy.music.ui.screens
 
+import android.os.SystemClock
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -21,13 +20,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -42,6 +39,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -70,6 +68,7 @@ import com.diyy.music.playback.ExoDownloadService
 import com.diyy.music.playback.PlayerConnection
 import com.diyy.music.ui.component.Artwork
 import com.diyy.music.ui.component.DiyyBrandMark
+import com.diyy.music.ui.component.DiyyInlineLyricsPreview
 import com.diyy.music.ui.component.DiyyLyricsSheet
 import com.diyy.music.ui.component.DiyyPlayerMenuSheet
 import com.diyy.music.ui.component.DiyyQueueSheet
@@ -78,10 +77,10 @@ import com.diyy.music.ui.component.LiquidGlassBox
 import com.diyy.music.ui.theme.DiyyRed
 import com.diyy.music.ui.theme.LocalDiyyUiConfig
 import com.diyy.music.utils.dataStore
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlin.math.max
+import kotlin.math.roundToLong
 
 @Composable
 fun PlayerScreen(
@@ -129,25 +128,26 @@ fun PlayerScreen(
     }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val compact = maxHeight < 680.dp
-        val needsScroll = maxHeight < 540.dp
+        val compact = maxHeight < 760.dp
+        val tiny = maxHeight < 620.dp
         val artworkSize = when {
             hideArtwork -> 0.dp
-            compact -> (maxWidth - 92.dp).coerceAtMost(250.dp)
-            else -> (maxWidth - 72.dp).coerceAtMost(310.dp)
+            tiny -> (maxWidth - 150.dp).coerceAtMost(165.dp)
+            compact -> (maxWidth - 122.dp).coerceAtMost(218.dp)
+            else -> (maxWidth - 112.dp).coerceAtMost(255.dp)
         }
 
         if (ui.backgroundGlow) {
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .padding(top = if (compact) 76.dp else 104.dp)
-                    .size(if (compact) 300.dp else 380.dp)
+                    .padding(top = if (compact) 68.dp else 88.dp)
+                    .size(if (compact) 280.dp else 340.dp)
                     .background(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                DiyyRed.copy(alpha = 0.12f * ui.accentStrength),
-                                DiyyRed.copy(alpha = 0.035f * ui.accentStrength),
+                                DiyyRed.copy(alpha = 0.11f * ui.accentStrength),
+                                DiyyRed.copy(alpha = 0.03f * ui.accentStrength),
                                 Color.Transparent,
                             ),
                         ),
@@ -156,14 +156,10 @@ fun PlayerScreen(
             )
         }
 
-        val contentModifier = if (needsScroll) {
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-        } else {
-            Modifier.fillMaxSize()
-        }
-
         Column(
-            modifier = contentModifier.padding(horizontal = 20.dp, vertical = 10.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp, vertical = 9.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(
@@ -185,7 +181,7 @@ fun PlayerScreen(
                 )
             }
 
-            Spacer(Modifier.height(if (compact) 12.dp else 20.dp))
+            Spacer(Modifier.height(if (tiny) 7.dp else 10.dp))
 
             if (!hideArtwork) {
                 AnimatedContent(
@@ -199,10 +195,10 @@ fun PlayerScreen(
                     Artwork(
                         url = metadata?.thumbnailUrl,
                         modifier = Modifier.size(artworkSize),
-                        cornerRadius = 28,
+                        cornerRadius = 26,
                     )
                 }
-                Spacer(Modifier.height(if (compact) 16.dp else 24.dp))
+                Spacer(Modifier.height(if (tiny) 9.dp else 13.dp))
             }
 
             Text(
@@ -216,7 +212,7 @@ fun PlayerScreen(
             )
             Text(
                 text = metadata?.artists?.joinToString { it.name }.orEmpty().ifBlank { "DiyyMusic" },
-                style = MaterialTheme.typography.bodyLarge,
+                style = if (tiny) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -224,14 +220,41 @@ fun PlayerScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Spacer(Modifier.height(if (compact) 16.dp else 22.dp))
+            Spacer(Modifier.height(if (tiny) 8.dp else 11.dp))
+            if (playerConnection != null) {
+                DiyyInlineLyricsPreview(
+                    playerConnection = playerConnection,
+                    metadata = metadata,
+                    onExpand = {
+                        if (metadata != null) showLyrics = true
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .heightIn(min = if (tiny) 94.dp else 118.dp),
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "Player is unavailable",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(if (tiny) 7.dp else 10.dp))
             PlayerProgressSection(
                 playerConnection = playerConnection,
                 metadata = metadata,
                 isPlaying = isPlaying,
             )
 
-            Spacer(Modifier.height(if (compact) 12.dp else 18.dp))
+            Spacer(Modifier.height(if (tiny) 4.dp else 7.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
@@ -241,17 +264,17 @@ fun PlayerScreen(
                     icon = if (shuffleEnabled) R.drawable.shuffle_on else R.drawable.shuffle,
                     contentDescription = "Shuffle",
                     active = shuffleEnabled,
-                    size = 42,
+                    size = 40,
                     onClick = { playerConnection?.toggleShuffle() },
                 )
                 SimplePlayerButton(
                     icon = R.drawable.skip_previous,
                     contentDescription = "Previous",
-                    size = 52,
+                    size = 48,
                     onClick = { playerConnection?.seekToPrevious() },
                 )
                 Surface(
-                    modifier = Modifier.size(if (compact) 66.dp else 72.dp),
+                    modifier = Modifier.size(if (tiny) 62.dp else 68.dp),
                     shape = CircleShape,
                     color = DiyyRed,
                     tonalElevation = 0.dp,
@@ -271,7 +294,7 @@ fun PlayerScreen(
                                 painter = painterResource(if (playing) R.drawable.pause else R.drawable.play),
                                 contentDescription = if (playing) "Pause" else "Play",
                                 tint = Color.White,
-                                modifier = Modifier.size(33.dp),
+                                modifier = Modifier.size(31.dp),
                             )
                         }
                     }
@@ -279,7 +302,7 @@ fun PlayerScreen(
                 SimplePlayerButton(
                     icon = R.drawable.skip_next,
                     contentDescription = "Next",
-                    size = 52,
+                    size = 48,
                     onClick = { playerConnection?.seekToNext() },
                 )
                 SimplePlayerButton(
@@ -290,24 +313,21 @@ fun PlayerScreen(
                     },
                     contentDescription = "Repeat",
                     active = repeatMode != Player.REPEAT_MODE_OFF,
-                    size = 42,
+                    size = 40,
                     onClick = { playerConnection?.cycleRepeatMode() },
                 )
             }
 
-            // Keep secondary actions attached to the transport controls. The previous
-            // weighted spacer pushed this bar to the bottom of tall screens and created a
-            // large dead area that looked like missing UI.
-            Spacer(Modifier.height(if (compact) 14.dp else 20.dp))
+            Spacer(Modifier.height(if (tiny) 4.dp else 7.dp))
             LiquidGlassBox(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(64.dp),
-                shape = RoundedCornerShape(24.dp),
-                elevation = 5.dp,
+                    .height(if (tiny) 48.dp else 52.dp),
+                shape = RoundedCornerShape(22.dp),
+                elevation = 4.dp,
             ) {
                 Row(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp),
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -318,8 +338,8 @@ fun PlayerScreen(
                         onClick = { playerConnection?.toggleLike() },
                     )
                     CompactPlayerAction(
-                        icon = R.drawable.lyrics,
-                        contentDescription = "Lyrics",
+                        icon = R.drawable.fullscreen,
+                        contentDescription = "Full lyrics",
                         active = showLyrics,
                         onClick = { if (metadata != null && playerConnection != null) showLyrics = true },
                     )
@@ -332,7 +352,7 @@ fun PlayerScreen(
                 }
             }
 
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(4.dp))
         }
     }
 
@@ -378,25 +398,41 @@ private fun PlayerProgressSection(
     var seeking by remember { mutableStateOf(false) }
 
     LaunchedEffect(playerConnection, metadata?.id, isPlaying, seeking) {
+        val player = runCatching { playerConnection?.player }.getOrNull() ?: return@LaunchedEffect
+        var lastPlayerPosition = player.currentPosition.coerceAtLeast(0L)
+        var lastPlayerUpdateAt = SystemClock.elapsedRealtime()
+
         while (true) {
-            val player = runCatching { playerConnection?.player }.getOrNull()
-            if (player != null) {
-                position = max(0L, player.currentPosition)
-                duration = max(1L, player.duration.takeIf { it > 0 } ?: metadata?.duration?.times(1000L) ?: 1L)
+            withFrameMillis {
+                val now = SystemClock.elapsedRealtime()
+                val reportedPosition = player.currentPosition.coerceAtLeast(0L)
+                if (reportedPosition != lastPlayerPosition) {
+                    lastPlayerPosition = reportedPosition
+                    lastPlayerUpdateAt = now
+                }
+
+                duration = max(
+                    1L,
+                    player.duration.takeIf { it > 0L }
+                        ?: metadata?.duration?.times(1000L)
+                        ?: 1L,
+                )
                 if (!seeking) {
+                    position = (
+                        lastPlayerPosition + if (isPlaying) {
+                            ((now - lastPlayerUpdateAt).coerceAtLeast(0L) * player.playbackParameters.speed)
+                                .roundToLong()
+                        } else {
+                            0L
+                        }
+                        ).coerceIn(0L, duration)
                     sliderValue = (position.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
                 }
             }
-            delay(if (isPlaying && !seeking) 220L else 500L)
         }
     }
 
-    val animatedValue by animateFloatAsState(
-        targetValue = sliderValue,
-        animationSpec = if (seeking) tween(0) else tween(240, easing = LinearEasing),
-        label = "playerProgress",
-    )
-    val visibleValue = if (seeking) sliderValue else animatedValue
+    val visibleValue = sliderValue
 
     DiyyTrackSlider(
         value = visibleValue,
