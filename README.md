@@ -1,26 +1,26 @@
-# DiyyMusic v0.7.0
+# DiyyMusic
 
-DiyyMusic is a modern Android music player built with Kotlin and Jetpack Compose.
+DiyyMusic is an independent open-source Android music client with a modern pink liquid-glass interface and a rebuilt Compose UI.
 
-## v0.7.0 Full UI Rebuild
+## Version
 
-- New premium light interface with realistic Liquid Glass layering.
-- Redesigned Home, Search, Library, Profile, mini player, bottom navigation, and full player.
-- Official pink music-note logo applied to in-app branding and launcher assets with a safe adaptive-icon margin.
-- New rounded playback controls and modern custom icon treatment.
-- Playback and volume sliders no longer use the ugly vertical line thumb. Tap and drag still work across the full track.
-- Search no longer displays any “search from YouTube” wording.
-- Account and token management is surfaced clearly from Profile.
-- Existing playback, queue, shuffle, repeat, media session, online search, Room database, downloads, cache, lyrics, recognition, integrations, widgets, alarms, and ViewModels remain preserved.
+Current development release: **0.7.2** (`versionCode 12`)
 
-## Build
+## DiyyMusic 0.7.2
 
-```bash
-./gradlew assembleFossDebug
-```
+- Fixed the Kotlin compile failure caused by passing an unsupported `onOpenRadio` argument to `LibraryScreen`.
+- Kept Radio navigation available from Listen Now.
+- Retained the v0.7.x Home, Search, Library, Profile, Now Playing, mini-player, bottom navigation, pink-note branding, and clean slider UI.
+- Retained the persistent debug-keystore reuse logic for Codemagic and GitHub Actions.
 
-The GitHub repository is expected at:
+## Build with Codemagic
 
-```text
-https://github.com/diyy4a/DiyyMusic.git
-```
+Push the updated project to the `main` branch. Codemagic runs **DiyyMusic v0.7.2 APK** and publishes `DiyyMusic-v0.7.2-armeabi-v7a.apk`.
+
+## Build with GitHub Actions
+
+Run **Build DiyyMusic v0.7.2 APK** and download the `DiyyMusic-v0.7.2-APK` artifact.
+
+## License
+
+DiyyMusic is distributed under the GNU General Public License v3.0 and is not affiliated with Apple, Google, YouTube, or Discord.

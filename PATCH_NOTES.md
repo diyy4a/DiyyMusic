@@ -1,5 +1,9 @@
-# DiyyMusic v0.7.1 Codemagic Build Fix
+# DiyyMusic v0.7.2 Patch
 
-Extract this ZIP into the root of an existing DiyyMusic v0.7.0 project and overwrite the matching files.
+This patch fixes the Codemagic Kotlin compilation error:
 
-The fix makes keystore creation idempotent: CI reuses a valid `app/persistent-debug.keystore` and only generates a new one when the file is missing or invalid.
+```text
+No parameter with name 'onOpenRadio' found.
+```
+
+The invalid argument was removed only from the `LibraryScreen` call. The valid Radio callback on `ListenNowScreen` remains intact. Extract the patch into the project root and overwrite existing files.

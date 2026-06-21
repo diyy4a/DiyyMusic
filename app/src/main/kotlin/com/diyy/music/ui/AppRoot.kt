@@ -140,7 +140,6 @@ fun DiyyMusicRoot(
                     playerConnection = playerConnection,
                     onOpenProfile = { navigateToTab(navController, DiyyMainTab.PROFILE) },
                     onOpenHistory = { navController.navigate(DiyyRoutes.HISTORY) },
-                    onOpenRadio = { navController.navigate(DiyyRoutes.RADIO) },
                     onOpenCollection = { openCollection(navController, it) },
                     onOpenDisplayOptions = { navController.navigate(DiyyRoutes.DISPLAY_OPTIONS) },
                 )
