@@ -751,10 +751,9 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
     val presenceReady = socialSdkEnabled && connectionStatus == DiscordRpcManager.Status.Connected
     val status = when (connectionStatus) {
         DiscordRpcManager.Status.Connected -> "Rich Presence connected"
-        DiscordRpcManager.Status.Linked -> if (socialSdkEnabled) {
-            "Account linked • Rich Presence unavailable"
-        } else {
-            "Account linked"
+        DiscordRpcManager.Status.Linked -> when {
+            enabled -> "Account linked • Rich Presence waiting for SDK"
+            else -> "Account linked"
         }
         DiscordRpcManager.Status.Authorizing -> "Waiting for Discord authorization"
         DiscordRpcManager.Status.Disconnected -> if (connected) "Account linked" else "Not connected"
@@ -833,7 +832,6 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
                                         scope.launch {
                                             busy = false
                                             if (success) {
-                                                if (!socialSdkEnabled) enabled = false
                                                 withContext(Dispatchers.IO) {
                                                     DiscordRpcManager.getAccessToken()?.let(DiscordRpcManager::fetchCurrentUser)
                                                 }
@@ -890,7 +888,7 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
                                 text = if (socialSdkEnabled) {
                                     "Your Discord account is linked, but the Rich Presence transport is not ready."
                                 } else {
-                                    "Account linking works in this build. Mobile Rich Presence stays disabled until the Discord application has Social SDK access and the build enables it."
+                                    "Rich Presence can be enabled as a preference now, but Discord will only publish it after the official Social SDK is included and approved for this application."
                                 },
                                 modifier = Modifier.padding(12.dp),
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -952,13 +950,14 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
             FigmaGroupedList(modifier = Modifier.padding(horizontal = 18.dp)) {
                 InlineSwitchRow(
                     title = "Enable Rich Presence",
-                    subtitle = if (presenceReady) {
-                        "Share the current track on Discord."
-                    } else {
-                        "Requires Discord Social SDK access for this application."
+                    subtitle = when {
+                        !connected -> "Link a Discord account first."
+                        presenceReady -> "Share the current track on Discord."
+                        enabled -> "Enabled locally; waiting for the official Discord Social SDK transport."
+                        else -> "Save the preference now and publish automatically when the SDK transport is available."
                     },
-                    checked = enabled && presenceReady,
-                    enabled = presenceReady,
+                    checked = enabled,
+                    enabled = connected,
                     onCheckedChange = {
                         enabled = it
                         DiscordRpcManager.notifySettingsChanged()
@@ -969,7 +968,7 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
                     title = "Show action buttons",
                     subtitle = "Show Listen and DiyyMusic buttons on the activity.",
                     checked = actionButtonsEnabled,
-                    enabled = presenceReady && enabled,
+                    enabled = connected && enabled,
                     onCheckedChange = {
                         button1Enabled = it
                         button2Enabled = it
@@ -1018,7 +1017,7 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
                             title = "Custom presence text",
                             subtitle = "Use templates instead of the default song and artist layout.",
                             checked = advancedMode,
-                            enabled = presenceReady && enabled,
+                            enabled = connected && enabled,
                             onCheckedChange = {
                                 advancedMode = it
                                 DiscordRpcManager.notifySettingsChanged()

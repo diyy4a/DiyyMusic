@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -132,9 +131,9 @@ fun PlayerScreen(
         val tiny = maxHeight < 620.dp
         val artworkSize = when {
             hideArtwork -> 0.dp
-            tiny -> (maxWidth - 150.dp).coerceAtMost(165.dp)
-            compact -> (maxWidth - 122.dp).coerceAtMost(218.dp)
-            else -> (maxWidth - 112.dp).coerceAtMost(255.dp)
+            tiny -> (maxWidth - 150.dp).coerceAtMost(158.dp)
+            compact -> (maxWidth - 122.dp).coerceAtMost(204.dp)
+            else -> (maxWidth - 112.dp).coerceAtMost(238.dp)
         }
 
         if (ui.backgroundGlow) {
@@ -220,114 +219,16 @@ fun PlayerScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Spacer(Modifier.height(if (tiny) 8.dp else 11.dp))
-            if (playerConnection != null) {
-                DiyyInlineLyricsPreview(
-                    playerConnection = playerConnection,
-                    metadata = metadata,
-                    onExpand = {
-                        if (metadata != null) showLyrics = true
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .heightIn(min = if (tiny) 94.dp else 118.dp),
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = "Player is unavailable",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(if (tiny) 7.dp else 10.dp))
-            PlayerProgressSection(
-                playerConnection = playerConnection,
-                metadata = metadata,
-                isPlaying = isPlaying,
-            )
-
-            Spacer(Modifier.height(if (tiny) 4.dp else 7.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                SimplePlayerButton(
-                    icon = if (shuffleEnabled) R.drawable.shuffle_on else R.drawable.shuffle,
-                    contentDescription = "Shuffle",
-                    active = shuffleEnabled,
-                    size = 40,
-                    onClick = { playerConnection?.toggleShuffle() },
-                )
-                SimplePlayerButton(
-                    icon = R.drawable.skip_previous,
-                    contentDescription = "Previous",
-                    size = 48,
-                    onClick = { playerConnection?.seekToPrevious() },
-                )
-                Surface(
-                    modifier = Modifier.size(if (tiny) 62.dp else 68.dp),
-                    shape = CircleShape,
-                    color = DiyyRed,
-                    tonalElevation = 0.dp,
-                    shadowElevation = if (ui.backgroundGlow) 5.dp else 1.dp,
-                    onClick = { playerConnection?.togglePlayPause() },
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        AnimatedContent(
-                            targetState = isPlaying,
-                            transitionSpec = {
-                                (fadeIn(tween(110)) + scaleIn(tween(140), initialScale = 0.88f)) togetherWith
-                                    (fadeOut(tween(90)) + scaleOut(tween(110), targetScale = 0.88f))
-                            },
-                            label = "playPauseIcon",
-                        ) { playing ->
-                            Icon(
-                                painter = painterResource(if (playing) R.drawable.pause else R.drawable.play),
-                                contentDescription = if (playing) "Pause" else "Play",
-                                tint = Color.White,
-                                modifier = Modifier.size(31.dp),
-                            )
-                        }
-                    }
-                }
-                SimplePlayerButton(
-                    icon = R.drawable.skip_next,
-                    contentDescription = "Next",
-                    size = 48,
-                    onClick = { playerConnection?.seekToNext() },
-                )
-                SimplePlayerButton(
-                    icon = when (repeatMode) {
-                        Player.REPEAT_MODE_ONE -> R.drawable.repeat_one_on
-                        Player.REPEAT_MODE_ALL -> R.drawable.repeat_on
-                        else -> R.drawable.repeat
-                    },
-                    contentDescription = "Repeat",
-                    active = repeatMode != Player.REPEAT_MODE_OFF,
-                    size = 40,
-                    onClick = { playerConnection?.cycleRepeatMode() },
-                )
-            }
-
-            Spacer(Modifier.height(if (tiny) 4.dp else 7.dp))
+            Spacer(Modifier.height(if (tiny) 5.dp else 7.dp))
             LiquidGlassBox(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(if (tiny) 48.dp else 52.dp),
-                shape = RoundedCornerShape(22.dp),
-                elevation = 4.dp,
+                    .fillMaxWidth(0.66f)
+                    .height(if (tiny) 40.dp else 44.dp),
+                shape = RoundedCornerShape(20.dp),
+                elevation = 3.dp,
             ) {
                 Row(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -352,7 +253,110 @@ fun PlayerScreen(
                 }
             }
 
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(if (tiny) 6.dp else 8.dp))
+            if (playerConnection != null) {
+                DiyyInlineLyricsPreview(
+                    playerConnection = playerConnection,
+                    metadata = metadata,
+                    onExpand = {
+                        if (metadata != null) showLyrics = true
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(
+                            when {
+                                tiny -> 108.dp
+                                compact -> 124.dp
+                                else -> 136.dp
+                            },
+                        ),
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(if (tiny) 108.dp else 124.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "Player is unavailable",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(if (tiny) 5.dp else 7.dp))
+            PlayerProgressSection(
+                playerConnection = playerConnection,
+                metadata = metadata,
+                isPlaying = isPlaying,
+            )
+
+            Spacer(Modifier.height(if (tiny) 1.dp else 3.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SimplePlayerButton(
+                    icon = if (shuffleEnabled) R.drawable.shuffle_on else R.drawable.shuffle,
+                    contentDescription = "Shuffle",
+                    active = shuffleEnabled,
+                    size = 40,
+                    onClick = { playerConnection?.toggleShuffle() },
+                )
+                SimplePlayerButton(
+                    icon = R.drawable.skip_previous,
+                    contentDescription = "Previous",
+                    size = 48,
+                    onClick = { playerConnection?.seekToPrevious() },
+                )
+                Surface(
+                    modifier = Modifier.size(if (tiny) 60.dp else 66.dp),
+                    shape = CircleShape,
+                    color = DiyyRed,
+                    tonalElevation = 0.dp,
+                    shadowElevation = if (ui.backgroundGlow) 5.dp else 1.dp,
+                    onClick = { playerConnection?.togglePlayPause() },
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        AnimatedContent(
+                            targetState = isPlaying,
+                            transitionSpec = {
+                                (fadeIn(tween(110)) + scaleIn(tween(140), initialScale = 0.88f)) togetherWith
+                                    (fadeOut(tween(90)) + scaleOut(tween(110), targetScale = 0.88f))
+                            },
+                            label = "playPauseIcon",
+                        ) { playing ->
+                            Icon(
+                                painter = painterResource(if (playing) R.drawable.pause else R.drawable.play),
+                                contentDescription = if (playing) "Pause" else "Play",
+                                tint = Color.White,
+                                modifier = Modifier.size(30.dp),
+                            )
+                        }
+                    }
+                }
+                SimplePlayerButton(
+                    icon = R.drawable.skip_next,
+                    contentDescription = "Next",
+                    size = 48,
+                    onClick = { playerConnection?.seekToNext() },
+                )
+                SimplePlayerButton(
+                    icon = when (repeatMode) {
+                        Player.REPEAT_MODE_ONE -> R.drawable.repeat_one_on
+                        Player.REPEAT_MODE_ALL -> R.drawable.repeat_on
+                        else -> R.drawable.repeat
+                    },
+                    contentDescription = "Repeat",
+                    active = repeatMode != Player.REPEAT_MODE_OFF,
+                    size = 40,
+                    onClick = { playerConnection?.cycleRepeatMode() },
+                )
+            }
+
+            Spacer(Modifier.height(3.dp))
         }
     }
 
@@ -530,7 +534,7 @@ private fun CompactPlayerAction(
     onClick: () -> Unit,
 ) {
     Surface(
-        modifier = Modifier.size(46.dp),
+        modifier = Modifier.size(40.dp),
         shape = CircleShape,
         color = if (active) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
         tonalElevation = 0.dp,
@@ -541,7 +545,7 @@ private fun CompactPlayerAction(
                 painter = painterResource(icon),
                 contentDescription = contentDescription,
                 tint = if (active) DiyyRed else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(23.dp),
+                modifier = Modifier.size(21.dp),
             )
         }
     }

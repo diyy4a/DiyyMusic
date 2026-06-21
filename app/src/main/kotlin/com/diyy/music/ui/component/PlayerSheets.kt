@@ -1,12 +1,6 @@
 package com.diyy.music.ui.component
 
 import android.os.SystemClock
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -56,7 +50,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
@@ -224,6 +217,7 @@ fun DiyyInlineLyricsPreview(
     val activeLyrics = lyricsEntity?.takeIf { it.id == metadata?.id }
     val lines = remember(activeLyrics?.lyrics) { parseDiyyLyrics(activeLyrics?.lyrics) }
     val hasSyncedLyrics = remember(lines) { lines.any { it.timeMs != null } }
+    val listState = rememberLazyListState()
     val context = androidx.compose.ui.platform.LocalContext.current
     val lyricsOffsetMs = currentSong?.song?.lyricsOffset?.toLong() ?: 0L
     var playbackPositionMs by remember(metadata?.id) { mutableLongStateOf(0L) }
@@ -288,16 +282,49 @@ fun DiyyInlineLyricsPreview(
         }
     }
 
+    LaunchedEffect(activeIndex, lines.size) {
+        if (activeIndex < 0 || lines.isEmpty()) return@LaunchedEffect
+        var viewportHeight = listState.layoutInfo.viewportSize.height
+        var layoutAttempts = 0
+        while (viewportHeight <= 0 && layoutAttempts < 6) {
+            withFrameMillis { }
+            viewportHeight = listState.layoutInfo.viewportSize.height
+            layoutAttempts++
+        }
+        if (viewportHeight <= 0) return@LaunchedEffect
+
+        var item = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == activeIndex }
+        if (item == null) {
+            listState.scrollToItem((activeIndex - 1).coerceAtLeast(0))
+            withFrameMillis { }
+            item = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == activeIndex }
+        }
+
+        item?.let {
+            val viewportCenter = listState.layoutInfo.viewportStartOffset + viewportHeight / 2
+            val itemCenter = it.offset + it.size / 2
+            val delta = (itemCenter - viewportCenter).toFloat()
+            if (abs(delta) > 1f) {
+                runCatching {
+                    listState.animateScrollBy(
+                        value = delta,
+                        animationSpec = tween(durationMillis = 900, easing = FastOutSlowInEasing),
+                    )
+                }
+            }
+        }
+    }
+
     LiquidGlassBox(
         modifier = modifier,
-        shape = RoundedCornerShape(26.dp),
-        elevation = 5.dp,
+        shape = RoundedCornerShape(22.dp),
+        elevation = 4.dp,
         onClick = onExpand,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 18.dp, vertical = 13.dp),
+                .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -307,30 +334,31 @@ fun DiyyInlineLyricsPreview(
                     painter = painterResource(R.drawable.lyrics),
                     contentDescription = null,
                     tint = DiyyRed,
-                    modifier = Modifier.size(21.dp),
+                    modifier = Modifier.size(18.dp),
                 )
-                Spacer(Modifier.size(9.dp))
+                Spacer(Modifier.size(7.dp))
                 Text(
                     text = "Lyrics",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                 )
                 Spacer(Modifier.weight(1f))
                 Text(
-                    text = "Full lyrics",
-                    style = MaterialTheme.typography.labelMedium,
+                    text = "Expand",
+                    style = MaterialTheme.typography.labelSmall,
                     color = DiyyRed,
                     fontWeight = FontWeight.SemiBold,
                 )
-                Spacer(Modifier.size(5.dp))
+                Spacer(Modifier.size(4.dp))
                 Icon(
                     painter = painterResource(R.drawable.fullscreen),
                     contentDescription = "Open full lyrics",
                     tint = DiyyRed,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(16.dp),
                 )
             }
 
+            Spacer(Modifier.height(3.dp))
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -340,29 +368,26 @@ fun DiyyInlineLyricsPreview(
                 when {
                     metadata == null -> InlineLyricsMessage("Play a song to see synced lyrics")
                     activeLyrics == null -> CircularProgressIndicator(
-                        modifier = Modifier.size(26.dp),
+                        modifier = Modifier.size(22.dp),
                         color = DiyyRed,
-                        strokeWidth = 2.5.dp,
+                        strokeWidth = 2.dp,
                     )
                     activeLyrics.lyrics == LyricsEntity.LYRICS_NOT_FOUND || lines.isEmpty() ->
                         InlineLyricsMessage("Lyrics are not available for this song")
                     !hasSyncedLyrics -> Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(5.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
                         lines.take(3).forEachIndexed { index, line ->
                             Text(
                                 text = line.text,
-                                style = if (index == 0) {
-                                    MaterialTheme.typography.titleMedium
-                                } else {
-                                    MaterialTheme.typography.bodyMedium
-                                },
+                                fontSize = 15.sp,
+                                lineHeight = 20.sp,
                                 fontWeight = if (index == 0) FontWeight.Bold else FontWeight.Medium,
                                 color = if (index == 0) {
                                     MaterialTheme.colorScheme.onSurface
                                 } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.58f)
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.48f)
                                 },
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -371,19 +396,24 @@ fun DiyyInlineLyricsPreview(
                             )
                         }
                     }
-                    else -> AnimatedContent(
-                        targetState = activeIndex.coerceAtLeast(0),
-                        transitionSpec = {
-                            (fadeIn(tween(260)) + slideInVertically(tween(360)) { it / 5 }) togetherWith
-                                (fadeOut(tween(170)) + slideOutVertically(tween(280)) { -it / 5 })
-                        },
-                        label = "inlineLyricsLine",
-                    ) { index ->
-                        InlineSyncedLyricsLines(
-                            lines = lines,
-                            activeIndex = index,
-                            playbackPositionMs = playbackPositionMs,
-                        )
+                    else -> LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        userScrollEnabled = false,
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 28.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        itemsIndexed(
+                            items = lines,
+                            key = { index, line -> "inline-${line.timeMs ?: -1L}-$index-${line.text}" },
+                        ) { index, line ->
+                            InlineLyricListLine(
+                                line = line,
+                                active = index == activeIndex,
+                                passed = activeIndex >= 0 && index < activeIndex,
+                                playbackPositionMs = playbackPositionMs,
+                            )
+                        }
                     }
                 }
             }
@@ -395,74 +425,52 @@ fun DiyyInlineLyricsPreview(
 private fun InlineLyricsMessage(message: String) {
     Text(
         text = message,
-        style = MaterialTheme.typography.bodyMedium,
+        style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         textAlign = TextAlign.Center,
-        modifier = Modifier.padding(horizontal = 20.dp),
+        modifier = Modifier.padding(horizontal = 16.dp),
     )
 }
 
 @Composable
-private fun InlineSyncedLyricsLines(
-    lines: List<DiyyLyricLine>,
-    activeIndex: Int,
+private fun InlineLyricListLine(
+    line: DiyyLyricLine,
+    active: Boolean,
+    passed: Boolean,
     playbackPositionMs: Long,
 ) {
-    val previous = lines.getOrNull(activeIndex - 1)
-    val active = lines.getOrNull(activeIndex)
-    val next = lines.getOrNull(activeIndex + 1)
+    val alpha by animateFloatAsState(
+        targetValue = when {
+            active -> 1f
+            passed -> 0.28f
+            else -> 0.50f
+        },
+        animationSpec = tween(260, easing = FastOutSlowInEasing),
+        label = "inlineLyricAlpha",
+    )
 
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        previous?.let {
-            Text(
-                text = it.text,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.34f),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth(),
+    Text(
+        text = if (active) {
+            buildSmoothLyricText(
+                line = line,
+                playbackPositionMs = playbackPositionMs,
+                completedColor = DiyyRed,
+                pendingColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.60f),
             )
-            Spacer(Modifier.height(5.dp))
-        }
-
-        active?.let { line ->
-            Text(
-                text = buildSmoothLyricText(
-                    line = line,
-                    playbackPositionMs = playbackPositionMs,
-                    completedColor = DiyyRed,
-                    pendingColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
-                ),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.ExtraBold,
-                lineHeight = 29.sp,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-
-        next?.let {
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = it.text,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.48f),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-    }
+        } else {
+            buildAnnotatedString { append(line.text) }
+        },
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha),
+        fontSize = 15.5.sp,
+        lineHeight = 20.sp,
+        fontWeight = if (active) FontWeight.ExtraBold else FontWeight.SemiBold,
+        textAlign = TextAlign.Center,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+    )
 }
 
 @Composable
@@ -557,10 +565,15 @@ fun DiyyLyricsSheet(
 
     LaunchedEffect(activeIndex, lines.size) {
         if (activeIndex < 0 || lines.isEmpty()) return@LaunchedEffect
-        withFrameMillis { }
-        val viewportHeight = listState.layoutInfo.viewportSize.height
+        var viewportHeight = listState.layoutInfo.viewportSize.height
+        var layoutAttempts = 0
+        while (viewportHeight <= 0 && layoutAttempts < 6) {
+            withFrameMillis { }
+            viewportHeight = listState.layoutInfo.viewportSize.height
+            layoutAttempts++
+        }
         if (viewportHeight <= 0) return@LaunchedEffect
-        val targetY = (viewportHeight * 0.37f).roundToInt()
+        val targetY = (viewportHeight * 0.42f).roundToInt()
         var item = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == activeIndex }
         if (item == null) {
             listState.scrollToItem((activeIndex - 2).coerceAtLeast(0))
@@ -574,7 +587,7 @@ fun DiyyLyricsSheet(
                 runCatching {
                     listState.animateScrollBy(
                         value = delta,
-                        animationSpec = tween(durationMillis = 520, easing = FastOutSlowInEasing),
+                        animationSpec = tween(durationMillis = 1150, easing = FastOutSlowInEasing),
                     )
                 }
             }
@@ -923,12 +936,6 @@ private fun SpotifyLyricLine(
         animationSpec = tween(if (ui.reduceMotion) 60 else 180),
         label = "spotifyLyricAlpha",
     )
-    val scale by animateFloatAsState(
-        targetValue = if (active && !ui.reduceMotion) 1.025f else 1f,
-        animationSpec = tween(if (ui.reduceMotion) 60 else 180, easing = FastOutSlowInEasing),
-        label = "spotifyLyricScale",
-    )
-
     val displayedText = if (active && playbackPositionMs != Long.MIN_VALUE) {
         buildSmoothLyricText(
             line = line,
@@ -943,20 +950,15 @@ private fun SpotifyLyricLine(
     Text(
         text = displayedText,
         color = Color.White.copy(alpha = alpha),
-        fontSize = if (active) 26.sp else 22.sp,
-        lineHeight = if (active) 32.sp else 28.sp,
+        fontSize = 24.sp,
+        lineHeight = 31.sp,
         fontWeight = if (active) FontWeight.ExtraBold else FontWeight.Bold,
         textAlign = TextAlign.Center,
         modifier = Modifier
             .fillMaxWidth()
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0.5f)
-            }
             .clip(RoundedCornerShape(10.dp))
             .clickable(enabled = onSeek != null) { onSeek?.invoke() }
-            .padding(vertical = 9.dp),
+            .padding(vertical = 8.dp),
     )
 }
 
