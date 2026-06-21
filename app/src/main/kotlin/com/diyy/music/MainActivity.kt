@@ -25,10 +25,17 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.lifecycle.lifecycleScope
 import com.diyy.music.constants.DarkMode
 import com.diyy.music.constants.DarkModeKey
+import com.diyy.music.constants.BackgroundGlowKey
+import com.diyy.music.constants.DynamicAccentStrengthKey
 import com.diyy.music.constants.DisableScreenshotKey
 import com.diyy.music.constants.EnableHighRefreshRateKey
 import com.diyy.music.constants.KeepScreenOn
+import com.diyy.music.constants.GlassIntensityKey
+import com.diyy.music.constants.GlassSoftnessKey
+import com.diyy.music.constants.MotionSmoothnessKey
 import com.diyy.music.constants.PureBlackKey
+import com.diyy.music.constants.ReduceMotionKey
+import com.diyy.music.constants.RoundedArtworkKey
 import com.diyy.music.constants.StopMusicOnTaskClearKey
 import com.diyy.music.db.MusicDatabase
 import com.diyy.music.listentogether.ListenTogetherManager
@@ -37,7 +44,9 @@ import com.diyy.music.playback.MusicService
 import com.diyy.music.playback.MusicService.MusicBinder
 import com.diyy.music.playback.PlayerConnection
 import com.diyy.music.ui.DiyyMusicRoot
+import com.diyy.music.ui.theme.DiyyMotionPreset
 import com.diyy.music.ui.theme.DiyyMusicTheme
+import com.diyy.music.ui.theme.DiyyUiConfig
 import com.diyy.music.utils.SyncUtils
 import com.diyy.music.extensions.toEnum
 import com.diyy.music.utils.dataStore
@@ -180,6 +189,17 @@ class MainActivity : ComponentActivity() {
                 DarkMode.AUTO -> systemDark
             }
             val pureBlack = preferences[PureBlackKey] ?: false
+            val uiConfig = DiyyUiConfig(
+                accentStrength = (preferences[DynamicAccentStrengthKey] ?: 0.74f).coerceIn(0.25f, 1f),
+                roundedArtwork = preferences[RoundedArtworkKey] ?: true,
+                motionPreset = runCatching {
+                    DiyyMotionPreset.valueOf(preferences[MotionSmoothnessKey] ?: DiyyMotionPreset.SMOOTH.name)
+                }.getOrDefault(DiyyMotionPreset.SMOOTH),
+                reduceMotion = preferences[ReduceMotionKey] ?: false,
+                glassIntensity = (preferences[GlassIntensityKey] ?: 0.60f).coerceIn(0.15f, 1f),
+                glassSoftness = (preferences[GlassSoftnessKey] ?: 0.45f).coerceIn(0.1f, 1f),
+                backgroundGlow = preferences[BackgroundGlowKey] ?: true,
+            )
 
             SideEffect {
                 WindowCompat.getInsetsController(window, window.decorView).apply {
@@ -188,7 +208,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            DiyyMusicTheme(darkTheme = darkTheme, pureBlack = pureBlack) {
+            DiyyMusicTheme(darkTheme = darkTheme, pureBlack = pureBlack, uiConfig = uiConfig) {
                 DiyyMusicRoot(
                     database = database,
                     downloadUtil = downloadUtil,

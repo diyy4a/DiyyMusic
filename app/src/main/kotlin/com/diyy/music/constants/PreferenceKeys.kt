@@ -23,6 +23,16 @@ val PureBlackMiniPlayerKey = booleanPreferencesKey("pureBlackMiniPlayer")
 val MiniPlayerOutlineKey = booleanPreferencesKey("miniPlayerOutline")
 val MiniPlayerBackgroundStyleKey = stringPreferencesKey("miniPlayerBackgroundStyle")
 
+// DiyyMusic visual tuning. These values are consumed once at the app theme root,
+// so changing the appearance does not create a DataStore collector for every card.
+val DynamicAccentStrengthKey = floatPreferencesKey("diyyDynamicAccentStrength")
+val RoundedArtworkKey = booleanPreferencesKey("diyyRoundedArtwork")
+val MotionSmoothnessKey = stringPreferencesKey("diyyMotionSmoothness")
+val ReduceMotionKey = booleanPreferencesKey("diyyReduceMotion")
+val GlassIntensityKey = floatPreferencesKey("diyyGlassIntensity")
+val GlassSoftnessKey = floatPreferencesKey("diyyGlassSoftness")
+val BackgroundGlowKey = booleanPreferencesKey("diyyBackgroundGlow")
+
 enum class MiniPlayerBackgroundStyle {
     DEFAULT,
     TRANSPARENT,

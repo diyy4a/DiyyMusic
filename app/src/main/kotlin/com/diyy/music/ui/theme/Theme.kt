@@ -7,8 +7,11 @@ import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.TextStyle
@@ -39,6 +42,25 @@ val ColorSaver = Saver<Color, Int>(
     save = { it.toArgb() },
     restore = { Color(it) },
 )
+
+enum class DiyyMotionPreset {
+    GENTLE,
+    SMOOTH,
+    SNAPPY,
+}
+
+@Immutable
+data class DiyyUiConfig(
+    val accentStrength: Float = 0.74f,
+    val roundedArtwork: Boolean = true,
+    val motionPreset: DiyyMotionPreset = DiyyMotionPreset.SMOOTH,
+    val reduceMotion: Boolean = false,
+    val glassIntensity: Float = 0.60f,
+    val glassSoftness: Float = 0.45f,
+    val backgroundGlow: Boolean = true,
+)
+
+val LocalDiyyUiConfig = staticCompositionLocalOf { DiyyUiConfig() }
 
 private val LightColors = lightColorScheme(
     primary = DiyyRed,
@@ -155,6 +177,7 @@ fun DiyyMusicTheme(
     darkTheme: Boolean = false,
     pureBlack: Boolean = false,
     themeColor: Color = DefaultThemeColor,
+    uiConfig: DiyyUiConfig = DiyyUiConfig(),
     content: @Composable () -> Unit,
 ) {
     val base: ColorScheme = if (darkTheme) DarkColors else LightColors
@@ -163,11 +186,13 @@ fun DiyyMusicTheme(
         background = if (darkTheme && pureBlack) Color.Black else base.background,
         surface = if (darkTheme && pureBlack) Color.Black else base.surface,
     )
-    MaterialTheme(
-        colorScheme = colors,
-        typography = DiyyTypography,
-        content = content,
-    )
+    CompositionLocalProvider(LocalDiyyUiConfig provides uiConfig) {
+        MaterialTheme(
+            colorScheme = colors,
+            typography = DiyyTypography,
+            content = content,
+        )
+    }
 }
 
 @Composable

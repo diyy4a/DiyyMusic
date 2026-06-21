@@ -9,11 +9,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -31,15 +33,24 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -48,14 +59,19 @@ import com.diyy.music.R
 import com.diyy.music.db.entities.LyricsEntity
 import com.diyy.music.di.LyricsHelperEntryPoint
 import com.diyy.music.extensions.metadata
+import com.diyy.music.lyrics.LyricsUtils
+import com.diyy.music.lyrics.WordTimestamp
 import com.diyy.music.models.MediaMetadata
 import com.diyy.music.playback.PlayerConnection
 import com.diyy.music.ui.theme.DiyyRed
+import com.diyy.music.ui.theme.LocalDiyyUiConfig
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -112,9 +128,7 @@ fun DiyyQueueSheet(
                         QueueRow(
                             window = window,
                             active = index == currentIndex,
-                            onClick = {
-                                playerConnection.playQueueItem(index)
-                            },
+                            onClick = { playerConnection.playQueueItem(index) },
                         )
                     }
                 }
@@ -135,7 +149,7 @@ private fun QueueRow(
             .fillMaxWidth()
             .height(74.dp),
         shape = RoundedCornerShape(22.dp),
-        elevation = if (active) 8.dp else 3.dp,
+        elevation = if (active) 7.dp else 3.dp,
         onClick = onClick,
     ) {
         Row(
@@ -152,7 +166,8 @@ private fun QueueRow(
             Spacer(Modifier.size(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = metadata?.title ?: window.mediaItem.mediaMetadata.title?.toString().orEmpty().ifBlank { "Unknown song" },
+                    text = metadata?.title
+                        ?: window.mediaItem.mediaMetadata.title?.toString().orEmpty().ifBlank { "Unknown song" },
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     fontWeight = if (active) FontWeight.Bold else FontWeight.SemiBold,
@@ -184,26 +199,20 @@ private fun QueueRow(
 fun DiyyLyricsSheet(
     playerConnection: PlayerConnection,
     metadata: MediaMetadata?,
-    positionMs: Long,
     onDismiss: () -> Unit,
 ) {
     val lyricsEntity by playerConnection.currentLyrics.collectAsStateWithLifecycle()
     val activeLyrics = lyricsEntity?.takeIf { it.id == metadata?.id }
+    val lines = remember(activeLyrics?.lyrics) { parseDiyyLyrics(activeLyrics?.lyrics) }
+    val hasSyncedLyrics = remember(lines) { lines.any { it.timeMs != null } }
     val listState = rememberLazyListState()
-    val lines = remember(activeLyrics?.lyrics) { parseLyrics(activeLyrics?.lyrics) }
-    val activeIndex = remember(lines, positionMs) {
-        if (lines.any { it.timeMs != null }) {
-            lines.indexOfLast { it.timeMs != null && it.timeMs <= positionMs }.coerceAtLeast(0)
-        } else {
-            -1
-        }
-    }
     val context = androidx.compose.ui.platform.LocalContext.current
+    var activeIndex by remember(lines) { mutableIntStateOf(if (hasSyncedLyrics) 0 else -1) }
 
     LaunchedEffect(metadata?.id, activeLyrics?.id) {
         val current = metadata ?: return@LaunchedEffect
         if (activeLyrics == null) {
-            delay(250)
+            delay(220)
             withContext(Dispatchers.IO) {
                 runCatching {
                     val entryPoint = EntryPointAccessors.fromApplication(
@@ -225,9 +234,29 @@ fun DiyyLyricsSheet(
         }
     }
 
-    LaunchedEffect(activeIndex) {
+    LaunchedEffect(lines, metadata?.id) {
+        if (!hasSyncedLyrics || lines.isEmpty()) {
+            activeIndex = -1
+            return@LaunchedEffect
+        }
+        while (isActive) {
+            val position = runCatching { playerConnection.player.currentPosition }.getOrDefault(0L)
+            val nextIndex = findActiveLyricIndex(lines, position)
+            if (nextIndex != activeIndex) activeIndex = nextIndex
+            // The index changes only when a new line starts. Polling here is cheap and keeps
+            // sync accurate without forcing the entire player screen to recompose every frame.
+            delay(45)
+        }
+    }
+
+    LaunchedEffect(activeIndex, lines.size) {
         if (activeIndex >= 0 && lines.isNotEmpty()) {
-            listState.animateScrollToItem((activeIndex - 2).coerceAtLeast(0))
+            delay(32)
+            val viewportHeight = listState.layoutInfo.viewportSize.height
+            val anchorOffset = if (viewportHeight > 0) -(viewportHeight * 0.34f).roundToInt() else 0
+            runCatching {
+                listState.animateScrollToItem(activeIndex, scrollOffset = anchorOffset)
+            }
         }
     }
 
@@ -240,13 +269,13 @@ fun DiyyLyricsSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.88f)
-                .padding(top = 18.dp),
+                .fillMaxHeight(0.90f)
+                .padding(top = 14.dp),
         ) {
             SheetHeader(
                 title = "Lyrics",
                 subtitle = activeLyrics?.provider?.takeIf { it.isNotBlank() && it != "Unknown" }
-                    ?.let { "From $it" }
+                    ?.let { "Smooth sync • $it" }
                     ?: metadata?.title.orEmpty(),
                 icon = R.drawable.lyrics,
                 onDismiss = onDismiss,
@@ -262,86 +291,146 @@ fun DiyyLyricsSheet(
                 }
                 activeLyrics.lyrics == LyricsEntity.LYRICS_NOT_FOUND || lines.isEmpty() ->
                     LyricsMessage("Lyrics not found for this song")
-                else -> LazyColumn(
-                    state = listState,
-                    modifier = Modifier.weight(1f),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        start = 22.dp,
-                        end = 22.dp,
-                        top = 12.dp,
-                        bottom = 80.dp,
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    itemsIndexed(lines, key = { index, line -> "${line.timeMs ?: -1L}-$index-${line.text}" }) { index, line ->
-                        val active = index == activeIndex
-                        val distance = if (activeIndex >= 0) abs(index - activeIndex) else 2
-                        val targetScale = when {
-                            activeIndex < 0 -> 1f
-                            active -> 1.045f
-                            distance == 1 -> 0.985f
-                            else -> 0.95f
+                else -> BoxWithConstraints(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            start = 20.dp,
+                            end = 20.dp,
+                            top = maxHeight * 0.28f,
+                            bottom = maxHeight * 0.42f,
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        itemsIndexed(
+                            items = lines,
+                            key = { index, line -> "${line.timeMs ?: -1L}-$index-${line.text}" },
+                        ) { index, line ->
+                            SmoothLyricLine(
+                                line = line,
+                                active = index == activeIndex,
+                                distance = if (activeIndex >= 0) abs(index - activeIndex) else 0,
+                                playerConnection = playerConnection,
+                                onSeek = line.timeMs?.let { time -> { playerConnection.seekTo(time) } },
+                            )
                         }
-                        val targetAlpha = when {
-                            activeIndex < 0 -> 0.82f
-                            active -> 1f
-                            distance == 1 -> 0.68f
-                            distance == 2 -> 0.46f
-                            else -> 0.28f
-                        }
-                        val scale by animateFloatAsState(
-                            targetValue = targetScale,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMediumLow,
-                            ),
-                            label = "lyricScale",
-                        )
-                        val alpha by animateFloatAsState(
-                            targetValue = targetAlpha,
-                            animationSpec = tween(260),
-                            label = "lyricAlpha",
-                        )
-                        val color by animateColorAsState(
-                            targetValue = if (active) DiyyRed else MaterialTheme.colorScheme.onSurface,
-                            animationSpec = tween(240),
-                            label = "lyricColor",
-                        )
-                        val fontSize by animateFloatAsState(
-                            targetValue = if (active) 23f else 18f,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioNoBouncy,
-                                stiffness = Spring.StiffnessMediumLow,
-                            ),
-                            label = "lyricFontSize",
-                        )
-
-                        Text(
-                            text = line.text,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .graphicsLayer {
-                                    scaleX = scale
-                                    scaleY = scale
-                                    this.alpha = alpha
-                                }
-                                .clip(RoundedCornerShape(18.dp))
-                                .background(if (active) DiyyRed.copy(alpha = 0.08f) else androidx.compose.ui.graphics.Color.Transparent)
-                                .clickable(enabled = line.timeMs != null) {
-                                    line.timeMs?.let(playerConnection::seekTo)
-                                }
-                                .padding(horizontal = 14.dp, vertical = if (active) 12.dp else 7.dp),
-                            color = color,
-                            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-                            fontSize = fontSize.sp,
-                            lineHeight = (fontSize + 7f).sp,
-                            textAlign = TextAlign.Center,
-                        )
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun SmoothLyricLine(
+    line: DiyyLyricLine,
+    active: Boolean,
+    distance: Int,
+    playerConnection: PlayerConnection,
+    onSeek: (() -> Unit)?,
+) {
+    val ui = LocalDiyyUiConfig.current
+    val targetAlpha = when {
+        line.timeMs == null -> 0.82f
+        active -> 1f
+        distance == 1 -> 0.62f
+        distance == 2 -> 0.42f
+        else -> 0.24f
+    }
+    val alpha by animateFloatAsState(
+        targetValue = targetAlpha,
+        animationSpec = tween(if (ui.reduceMotion) 90 else 260),
+        label = "lyricAlpha",
+    )
+    val scale by animateFloatAsState(
+        targetValue = if (active && !ui.reduceMotion) 1.035f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+        ),
+        label = "lyricScale",
+    )
+    val background by animateColorAsState(
+        targetValue = if (active) DiyyRed.copy(alpha = 0.075f) else Color.Transparent,
+        animationSpec = tween(220),
+        label = "lyricBackground",
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                this.alpha = alpha
+            }
+            .clip(RoundedCornerShape(20.dp))
+            .background(background)
+            .clickable(enabled = onSeek != null) { onSeek?.invoke() }
+            .padding(horizontal = 14.dp, vertical = if (active) 14.dp else 9.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        KaraokeLyricText(
+            line = line,
+            active = active,
+            playerConnection = playerConnection,
+        )
+    }
+}
+
+@Composable
+private fun KaraokeLyricText(
+    line: DiyyLyricLine,
+    active: Boolean,
+    playerConnection: PlayerConnection,
+) {
+    val words = line.words
+    var position by remember(line.timeMs) { mutableLongStateOf(0L) }
+
+    LaunchedEffect(active, words, line.timeMs) {
+        if (!active || words.isNullOrEmpty()) return@LaunchedEffect
+        while (isActive) {
+            position = runCatching { playerConnection.player.currentPosition }.getOrDefault(position)
+            // Only the active lyric row refreshes at frame-like speed. The rest stays static.
+            delay(32)
+        }
+    }
+
+    val activeColor = DiyyRed
+    val inactiveColor = MaterialTheme.colorScheme.onSurface
+    val annotated = remember(line.text, words, position, active, activeColor, inactiveColor) {
+        if (!active || words.isNullOrEmpty()) {
+            buildAnnotatedString { append(line.text) }
+        } else {
+            buildAnnotatedString {
+                words.forEach { word ->
+                    val startMs = (word.startTime * 1000.0).toLong()
+                    val endMs = (word.endTime * 1000.0).toLong().coerceAtLeast(startMs + 1L)
+                    val progress = ((position - startMs).toFloat() / (endMs - startMs).toFloat()).coerceIn(0f, 1f)
+                    val color = when {
+                        position >= endMs -> activeColor
+                        position >= startMs -> lerp(inactiveColor.copy(alpha = 0.78f), activeColor, progress)
+                        else -> inactiveColor.copy(alpha = 0.72f)
+                    }
+                    withStyle(SpanStyle(color = color)) {
+                        append(word.text)
+                        if (word.hasTrailingSpace) append(' ')
+                    }
+                }
+            }
+        }
+    }
+
+    Text(
+        text = annotated,
+        color = if (active && words.isNullOrEmpty()) activeColor else inactiveColor,
+        fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+        fontSize = if (active) 26.sp else 20.sp,
+        lineHeight = if (active) 33.sp else 28.sp,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable
@@ -415,7 +504,7 @@ fun DiyyPlayerMenuSheet(
             MenuAction(
                 icon = R.drawable.lyrics,
                 title = "Lyrics",
-                subtitle = "Open synced or plain lyrics",
+                subtitle = "Open smooth synced lyrics",
                 onClick = { onDismiss(); onLyrics() },
             )
             MenuAction(
@@ -525,56 +614,61 @@ private fun SheetHeader(
     }
 }
 
-private data class LyricLine(val timeMs: Long?, val text: String)
+private data class DiyyLyricLine(
+    val timeMs: Long?,
+    val text: String,
+    val words: List<WordTimestamp>? = null,
+)
 
-private val lrcLineRegex = Regex("""((?:\[\d{1,3}:\d{2}(?:[.:]\d{1,3})?])+)(.*)""")
-private val lrcTimeRegex = Regex("""\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?]""")
 private val metadataTagRegex = Regex("""^\[[a-zA-Z]+:.*]$""")
 private val lyricAgentTagRegex = Regex("""\{(?:agent:[^}]+|bg)\}""")
 private val inlineLyricTimeRegex = Regex("""<\d{1,3}:\d{2}(?:[.:]\d{1,3})?>""")
 
-private fun parseLyrics(raw: String?): List<LyricLine> {
+private fun parseDiyyLyrics(raw: String?): List<DiyyLyricLine> {
     if (raw.isNullOrBlank() || raw == LyricsEntity.LYRICS_NOT_FOUND) return emptyList()
 
-    return runCatching {
-        val result = mutableListOf<LyricLine>()
-        raw.lineSequence().forEach { original ->
-            val line = original.trim().removePrefix("\uFEFF")
-            if (line.isBlank() || metadataTagRegex.matches(line)) return@forEach
+    val richLines = runCatching { LyricsUtils.parseLyrics(raw) }.getOrDefault(emptyList())
+    if (richLines.isNotEmpty()) {
+        return richLines
+            .filter { it.text.isNotBlank() }
+            .map { entry ->
+                DiyyLyricLine(
+                    timeMs = entry.time,
+                    text = entry.text.trim(),
+                    words = entry.words,
+                )
+            }
+    }
 
-            val match = lrcLineRegex.matchEntire(line)
-            if (match == null) {
-                val clean = line.replace(lyricAgentTagRegex, "").trim()
-                if (clean.isNotBlank()) result += LyricLine(null, clean)
-            } else {
-                val text = match.groupValues[2]
+    return raw.lineSequence()
+        .map { it.trim().removePrefix("\uFEFF") }
+        .filter { it.isNotBlank() && !metadataTagRegex.matches(it) }
+        .map { line ->
+            DiyyLyricLine(
+                timeMs = null,
+                text = line
                     .replace(inlineLyricTimeRegex, "")
                     .replace(lyricAgentTagRegex, "")
-                    .trim()
-                if (text.isBlank()) return@forEach
-
-                lrcTimeRegex.findAll(match.groupValues[1]).forEach { timeMatch ->
-                    val minute = timeMatch.groupValues[1].toLongOrNull() ?: 0L
-                    val second = timeMatch.groupValues[2].toLongOrNull() ?: 0L
-                    val fractionText = timeMatch.groupValues[3]
-                    val fraction = when (fractionText.length) {
-                        1 -> fractionText.toLongOrNull()?.times(100L) ?: 0L
-                        2 -> fractionText.toLongOrNull()?.times(10L) ?: 0L
-                        else -> fractionText.take(3).padEnd(3, '0').toLongOrNull() ?: 0L
-                    }
-                    result += LyricLine((minute * 60_000L) + (second * 1_000L) + fraction, text)
-                }
-            }
+                    .trim(),
+            )
         }
-        val hasTimed = result.any { it.timeMs != null }
-        if (hasTimed) result.sortedBy { it.timeMs ?: Long.MAX_VALUE } else result
-    }.getOrElse {
-        // A malformed provider tag must never be able to kill the player sheet.
-        raw.lineSequence()
-            .map { it.trim().removePrefix("\uFEFF") }
-            .filter { it.isNotBlank() && !metadataTagRegex.matches(it) }
-            .map { LyricLine(null, it.replace(lyricAgentTagRegex, "").trim()) }
-            .filter { it.text.isNotBlank() }
-            .toList()
+        .filter { it.text.isNotBlank() }
+        .toList()
+}
+
+private fun findActiveLyricIndex(lines: List<DiyyLyricLine>, positionMs: Long): Int {
+    var low = 0
+    var high = lines.lastIndex
+    var result = 0
+    while (low <= high) {
+        val mid = (low + high) ushr 1
+        val time = lines[mid].timeMs ?: Long.MAX_VALUE
+        if (time <= positionMs + 100L) {
+            result = mid
+            low = mid + 1
+        } else {
+            high = mid - 1
+        }
     }
+    return result.coerceIn(0, lines.lastIndex)
 }

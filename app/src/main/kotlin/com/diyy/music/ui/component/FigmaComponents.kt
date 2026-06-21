@@ -82,6 +82,8 @@ import com.diyy.music.ui.theme.DiyyGlass
 import com.diyy.music.ui.theme.DiyyPinkLight
 import com.diyy.music.ui.theme.DiyyRed
 import com.diyy.music.ui.theme.DiyyRedStrong
+import com.diyy.music.ui.theme.DiyyMotionPreset
+import com.diyy.music.ui.theme.LocalDiyyUiConfig
 import com.diyy.music.ui.theme.DiyySoftRed
 import com.diyy.music.ui.theme.DiyySurface
 import com.diyy.music.ui.theme.isDiyyDarkTheme
@@ -97,17 +99,37 @@ fun LiquidGlassBox(
     content: @Composable BoxScope.() -> Unit,
 ) {
     val dark = isDiyyDarkTheme()
-    val top = if (dark) Color(0xE62A2830) else Color(0xF2FFFFFF)
-    val bottom = if (dark) Color(0xD91C1A20) else DiyyGlass
-    val border = if (dark) Color.White.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.92f)
+    val ui = LocalDiyyUiConfig.current
+    val intensity = ui.glassIntensity.coerceIn(0.2f, 1f)
+    val softness = ui.glassSoftness.coerceIn(0f, 1f)
+    val top = if (dark) {
+        Color(0xFF2A2830).copy(alpha = 0.52f + (0.34f * intensity))
+    } else {
+        Color.White.copy(alpha = 0.68f + (0.27f * intensity))
+    }
+    val bottom = if (dark) {
+        Color(0xFF1C1A20).copy(alpha = 0.58f + (0.30f * intensity) - (0.10f * softness))
+    } else {
+        DiyyGlass.copy(alpha = 0.62f + (0.28f * intensity) - (0.08f * softness))
+    }
+    val border = if (dark) {
+        Color.White.copy(alpha = 0.05f + (0.09f * intensity))
+    } else {
+        Color.White.copy(alpha = 0.62f + (0.30f * intensity))
+    }
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
+    val pressedScale = if (ui.reduceMotion) 1f else 0.982f
     val scale by animateFloatAsState(
-        targetValue = if (pressed && onClick != null) 0.975f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium,
-        ),
+        targetValue = if (pressed && onClick != null) pressedScale else 1f,
+        animationSpec = when (ui.motionPreset) {
+            DiyyMotionPreset.GENTLE -> tween(220)
+            DiyyMotionPreset.SMOOTH -> spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMediumLow,
+            )
+            DiyyMotionPreset.SNAPPY -> tween(110)
+        },
         label = "glassPressScale",
     )
     val clickableModifier = if (onClick != null) {
@@ -119,15 +141,17 @@ fun LiquidGlassBox(
     } else {
         Modifier
     }
+    val shadowStrength = (0.35f + (0.65f * intensity)).coerceIn(0f, 1f)
+    val effectiveElevation = (elevation.value.coerceAtMost(10f) * shadowStrength).dp
 
     Box(
         modifier = modifier
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
-                alpha = if (pressed && onClick != null) 0.96f else 1f
+                alpha = if (pressed && onClick != null) 0.97f else 1f
             }
-            .shadow(elevation, shape, clip = false)
+            .shadow(effectiveElevation, shape, clip = false)
             .clip(shape)
             .background(Brush.verticalGradient(listOf(top, bottom)))
             .border(1.dp, border, shape)
@@ -141,23 +165,46 @@ fun DiyyPageMotion(
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit,
 ) {
+    val ui = LocalDiyyUiConfig.current
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
+
+    val duration = when (ui.motionPreset) {
+        DiyyMotionPreset.GENTLE -> 300
+        DiyyMotionPreset.SMOOTH -> 220
+        DiyyMotionPreset.SNAPPY -> 140
+    }
+    val enterTransition = if (ui.reduceMotion) {
+        fadeIn(tween(90))
+    } else {
+        fadeIn(tween(duration)) +
+            slideInVertically(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = if (ui.motionPreset == DiyyMotionPreset.GENTLE) {
+                        Spring.StiffnessLow
+                    } else {
+                        Spring.StiffnessMediumLow
+                    },
+                ),
+                initialOffsetY = { it / 24 },
+            ) + scaleIn(initialScale = 0.992f, animationSpec = tween(duration + 30))
+    }
+    val exitTransition = if (ui.reduceMotion) {
+        fadeOut(tween(70))
+    } else {
+        fadeOut(tween((duration * 0.65f).toInt())) +
+            slideOutVertically(
+                targetOffsetY = { -it / 36 },
+                animationSpec = tween((duration * 0.75f).toInt()),
+            )
+    }
 
     AnimatedVisibility(
         visible = visible,
         modifier = modifier.fillMaxSize(),
-        enter = fadeIn(tween(220)) +
-            slideInVertically(
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMediumLow,
-                ),
-                initialOffsetY = { it / 18 },
-            ) + scaleIn(initialScale = 0.988f, animationSpec = tween(260)),
-        exit = fadeOut(tween(140)) +
-            slideOutVertically(targetOffsetY = { -it / 30 }, animationSpec = tween(160)) +
-            scaleOut(targetScale = 0.992f, animationSpec = tween(160)),
+        enter = enterTransition,
+        exit = exitTransition,
     ) {
         Box(modifier = Modifier.fillMaxSize(), content = content)
     }
@@ -194,6 +241,7 @@ fun DiyyBrandMark(
 fun DiyyScreenHeader(
     title: String,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
     onBack: (() -> Unit)? = null,
     onHistory: (() -> Unit)? = null,
     onProfile: (() -> Unit)? = null,
@@ -254,10 +302,22 @@ fun DiyyScreenHeader(
             text = title,
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 10.dp),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+        if (!subtitle.isNullOrBlank()) {
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 3.dp, bottom = 8.dp),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        } else {
+            Spacer(Modifier.height(10.dp))
+        }
     }
 }
 
@@ -332,6 +392,7 @@ fun DiyyBottomNavigation(
     onSelected: (DiyyMainTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val ui = LocalDiyyUiConfig.current
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -358,11 +419,15 @@ fun DiyyBottomNavigation(
                         label = "navigationTint",
                     )
                     val itemScale by animateFloatAsState(
-                        targetValue = if (active) 1.06f else 1f,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessMedium,
-                        ),
+                        targetValue = if (active && !ui.reduceMotion) 1.04f else 1f,
+                        animationSpec = when (ui.motionPreset) {
+                            DiyyMotionPreset.GENTLE -> tween(220)
+                            DiyyMotionPreset.SMOOTH -> spring(
+                                dampingRatio = Spring.DampingRatioNoBouncy,
+                                stiffness = Spring.StiffnessMediumLow,
+                            )
+                            DiyyMotionPreset.SNAPPY -> tween(110)
+                        },
                         label = "navigationScale",
                     )
                     Column(
@@ -522,10 +587,14 @@ fun Artwork(
     cornerRadius: Int = 16,
     fallbackIcon: Int = R.drawable.music_note,
 ) {
+    val ui = LocalDiyyUiConfig.current
+    val resolvedRadius = if (ui.roundedArtwork) cornerRadius.dp else 6.dp
+    val shape = RoundedCornerShape(resolvedRadius)
+    val shadow = if (ui.backgroundGlow) 6.dp else 2.dp
     Box(
         modifier = modifier
-            .shadow(8.dp, RoundedCornerShape(cornerRadius.dp), clip = false)
-            .clip(RoundedCornerShape(cornerRadius.dp))
+            .shadow(shadow, shape, clip = false)
+            .clip(shape)
             .background(DiyySurface),
         contentAlignment = Alignment.Center,
     ) {

@@ -67,6 +67,7 @@ import com.diyy.music.constants.AccountChannelHandleKey
 import com.diyy.music.constants.AccountEmailKey
 import com.diyy.music.constants.AccountNameKey
 import com.diyy.music.constants.AudioNormalizationKey
+import com.diyy.music.constants.BackgroundGlowKey
 import com.diyy.music.constants.AudioOffload
 import com.diyy.music.constants.AudioQuality
 import com.diyy.music.constants.AudioQualityKey
@@ -79,6 +80,7 @@ import com.diyy.music.constants.CrossfadeEnabledKey
 import com.diyy.music.constants.CrossfadeGaplessKey
 import com.diyy.music.constants.DarkMode
 import com.diyy.music.constants.DarkModeKey
+import com.diyy.music.constants.DynamicAccentStrengthKey
 import com.diyy.music.constants.DataSyncIdKey
 import com.diyy.music.constants.DisableScreenshotKey
 import com.diyy.music.constants.DiscordActivityTypeKey
@@ -94,19 +96,25 @@ import com.diyy.music.constants.DiscordUserStatusKey
 import com.diyy.music.constants.EnableDiscordRPCKey
 import com.diyy.music.constants.EnableHighRefreshRateKey
 import com.diyy.music.constants.EnableSongCacheKey
+import com.diyy.music.constants.GlassIntensityKey
+import com.diyy.music.constants.GlassSoftnessKey
 import com.diyy.music.constants.HideExplicitKey
 import com.diyy.music.constants.HidePlayerThumbnailKey
 import com.diyy.music.constants.HideVideoSongsKey
 import com.diyy.music.constants.HideYoutubeShortsKey
 import com.diyy.music.constants.InnerTubeCookieKey
 import com.diyy.music.constants.KeepScreenOn
+import com.diyy.music.constants.MaxSongCacheSizeKey
 import com.diyy.music.constants.MiniPlayerOutlineKey
+import com.diyy.music.constants.MotionSmoothnessKey
 import com.diyy.music.constants.PauseListenHistoryKey
 import com.diyy.music.constants.PauseOnMute
 import com.diyy.music.constants.PauseSearchHistoryKey
 import com.diyy.music.constants.PersistentQueueKey
 import com.diyy.music.constants.PreventDuplicateTracksInQueueKey
 import com.diyy.music.constants.PureBlackKey
+import com.diyy.music.constants.ReduceMotionKey
+import com.diyy.music.constants.RoundedArtworkKey
 import com.diyy.music.constants.RememberShuffleAndRepeatKey
 import com.diyy.music.constants.ResumeOnBluetoothConnectKey
 import com.diyy.music.constants.SkipSilenceInstantKey
@@ -121,6 +129,7 @@ import com.diyy.music.ui.component.FigmaDivider
 import com.diyy.music.ui.component.FigmaGroupedList
 import com.diyy.music.ui.component.FigmaSettingsRow
 import com.diyy.music.ui.component.LiquidGlassBox
+import com.diyy.music.ui.theme.DiyyMotionPreset
 import com.diyy.music.ui.theme.DiyyRed
 import com.diyy.music.ui.theme.DiyySoftRed
 import com.diyy.music.utils.dataStore
@@ -130,6 +139,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 
 private data class BooleanSetting(
     val title: String,
@@ -137,6 +147,7 @@ private data class BooleanSetting(
     val key: Preferences.Key<Boolean>,
     val default: Boolean,
     val invert: Boolean = false,
+    val icon: Int? = null,
 )
 
 @Composable
@@ -325,35 +336,189 @@ private fun TokenField(
 @Composable
 private fun AppearanceDetail(onBack: () -> Unit, modifier: Modifier) {
     var darkMode by rememberPreference(DarkModeKey, DarkMode.AUTO.name)
-    val settings = listOf(
-        BooleanSetting("Pure black dark mode", "Use true black backgrounds when dark mode is active.", PureBlackKey, false),
-        BooleanSetting("High refresh rate", "Use the smoothest display mode available.", EnableHighRefreshRateKey, true),
-        BooleanSetting("Mini-player outline", "Show the subtle Liquid Glass edge highlight.", MiniPlayerOutlineKey, true),
-        BooleanSetting("Hide player artwork", "Use a compact player without the large cover image.", HidePlayerThumbnailKey, false),
-        BooleanSetting("Block screenshots", "Protect the app window from screenshots and screen recording.", DisableScreenshotKey, false),
-    )
+    var pureBlack by rememberPreference(PureBlackKey, false)
+    var accentStrengthPreference by rememberPreference(DynamicAccentStrengthKey, 0.74f)
+    var motionSmoothness by rememberPreference(MotionSmoothnessKey, DiyyMotionPreset.SMOOTH.name)
+    var glassIntensityPreference by rememberPreference(GlassIntensityKey, 0.60f)
+    var glassSoftnessPreference by rememberPreference(GlassSoftnessKey, 0.45f)
+    var accentStrength by remember { mutableStateOf(accentStrengthPreference) }
+    var glassIntensity by remember { mutableStateOf(glassIntensityPreference) }
+    var glassSoftness by remember { mutableStateOf(glassSoftnessPreference) }
 
-    LazyColumn(modifier = modifier, contentPadding = PaddingValues(bottom = 28.dp)) {
-        item { DiyyScreenHeader("Appearance", onBack = onBack) }
-        item { SettingsLabel("Theme") }
+    LaunchedEffect(accentStrengthPreference) { accentStrength = accentStrengthPreference }
+    LaunchedEffect(glassIntensityPreference) { glassIntensity = glassIntensityPreference }
+    LaunchedEffect(glassSoftnessPreference) { glassSoftness = glassSoftnessPreference }
+
+    val selectedTheme = if (pureBlack) "PURE_BLACK" else darkMode
+
+    LazyColumn(modifier = modifier, contentPadding = PaddingValues(bottom = 32.dp)) {
+        item {
+            DiyyScreenHeader(
+                title = "Appearance",
+                subtitle = "Customize how DiyyMusic looks and feels.",
+                onBack = onBack,
+            )
+        }
+        item { SettingsLabel("Theme mode") }
         item {
             FigmaGroupedList(modifier = Modifier.padding(horizontal = 18.dp)) {
                 DropdownPreferenceRow(
                     title = "Theme mode",
-                    subtitle = "Choose how DiyyMusic follows your display theme.",
+                    subtitle = "Choose the display style used across DiyyMusic.",
                     icon = R.drawable.palette,
-                    selected = darkMode,
+                    selected = selectedTheme,
                     options = listOf(
                         DarkMode.AUTO.name to "System",
                         DarkMode.OFF.name to "Light",
                         DarkMode.ON.name to "Dark",
+                        "PURE_BLACK" to "Pure Black",
                     ),
-                    onSelected = { darkMode = it },
+                    onSelected = { selected ->
+                        if (selected == "PURE_BLACK") {
+                            darkMode = DarkMode.ON.name
+                            pureBlack = true
+                        } else {
+                            darkMode = selected
+                            pureBlack = false
+                        }
+                    },
                 )
             }
         }
+
         item { SettingsLabel("Interface") }
-        item { BooleanSettingsGroup(settings, Modifier.padding(horizontal = 18.dp)) }
+        item {
+            FigmaGroupedList(modifier = Modifier.padding(horizontal = 18.dp)) {
+                PreferenceSwitchRow(
+                    BooleanSetting(
+                        "High refresh rate",
+                        "Use the smoothest display mode available.",
+                        EnableHighRefreshRateKey,
+                        true,
+                        icon = R.drawable.speed,
+                    ),
+                )
+                FigmaDivider()
+                SliderPreferenceRow(
+                    title = "Dynamic accent strength",
+                    subtitle = "Adjust the intensity of the pink accent color.",
+                    icon = R.drawable.gradient,
+                    value = accentStrength,
+                    onValueChange = { accentStrength = it },
+                    onValueChangeFinished = { accentStrengthPreference = accentStrength },
+                    valueRange = 0.25f..1f,
+                    valueText = "${(accentStrength * 100).roundToInt()}%",
+                )
+                FigmaDivider()
+                PreferenceSwitchRow(
+                    BooleanSetting(
+                        "Rounded artwork",
+                        "Use rounded corners for album artwork.",
+                        RoundedArtworkKey,
+                        true,
+                        icon = R.drawable.crop,
+                    ),
+                )
+            }
+        }
+
+        item { SettingsLabel("Animations") }
+        item {
+            FigmaGroupedList(modifier = Modifier.padding(horizontal = 18.dp)) {
+                DropdownPreferenceRow(
+                    title = "Motion smoothness",
+                    subtitle = "Control the speed of interface animations.",
+                    icon = R.drawable.slow_motion_video,
+                    selected = motionSmoothness,
+                    options = listOf(
+                        DiyyMotionPreset.GENTLE.name to "Gentle",
+                        DiyyMotionPreset.SMOOTH.name to "Smooth",
+                        DiyyMotionPreset.SNAPPY.name to "Snappy",
+                    ),
+                    onSelected = { motionSmoothness = it },
+                )
+                FigmaDivider()
+                PreferenceSwitchRow(
+                    BooleanSetting(
+                        "Reduce motion",
+                        "Minimize animations across the app.",
+                        ReduceMotionKey,
+                        false,
+                        icon = R.drawable.linear_scale,
+                    ),
+                )
+            }
+        }
+
+        item { SettingsLabel("Mini-player") }
+        item {
+            BooleanSettingsGroup(
+                settings = listOf(
+                    BooleanSetting(
+                        "Mini-player outline",
+                        "Show the subtle Liquid Glass edge highlight.",
+                        MiniPlayerOutlineKey,
+                        true,
+                        icon = R.drawable.dock_to_top,
+                    ),
+                    BooleanSetting(
+                        "Hide player artwork",
+                        "Use a compact player without the large cover image.",
+                        HidePlayerThumbnailKey,
+                        false,
+                        icon = R.drawable.hide_image,
+                    ),
+                ),
+                modifier = Modifier.padding(horizontal = 18.dp),
+            )
+        }
+
+        item { SettingsLabel("Visual effects") }
+        item {
+            FigmaGroupedList(modifier = Modifier.padding(horizontal = 18.dp)) {
+                SliderPreferenceRow(
+                    title = "Glass intensity",
+                    subtitle = "Control the strength of Liquid Glass surfaces.",
+                    icon = R.drawable.contrast,
+                    value = glassIntensity,
+                    onValueChange = { glassIntensity = it },
+                    onValueChangeFinished = { glassIntensityPreference = glassIntensity },
+                    valueRange = 0.15f..1f,
+                    valueText = "${(glassIntensity * 100).roundToInt()}%",
+                )
+                FigmaDivider()
+                SliderPreferenceRow(
+                    title = "Glass softness",
+                    subtitle = "Adjust the softness of glass borders and depth.",
+                    icon = R.drawable.discover_tune,
+                    value = glassSoftness,
+                    onValueChange = { glassSoftness = it },
+                    onValueChangeFinished = { glassSoftnessPreference = glassSoftness },
+                    valueRange = 0.10f..1f,
+                    valueText = "${(glassSoftness * 100).roundToInt()}%",
+                )
+                FigmaDivider()
+                PreferenceSwitchRow(
+                    BooleanSetting(
+                        "Background glow",
+                        "Enable a subtle accent glow behind key elements.",
+                        BackgroundGlowKey,
+                        true,
+                        icon = R.drawable.gradient,
+                    ),
+                )
+                FigmaDivider()
+                PreferenceSwitchRow(
+                    BooleanSetting(
+                        "Block screenshots",
+                        "Protect the app window from screenshots and recording.",
+                        DisableScreenshotKey,
+                        false,
+                        icon = R.drawable.security,
+                    ),
+                )
+            }
+        }
     }
 }
 
@@ -361,29 +526,39 @@ private fun AppearanceDetail(onBack: () -> Unit, modifier: Modifier) {
 private fun PlayerAudioDetail(onBack: () -> Unit, modifier: Modifier) {
     var audioQuality by rememberPreference(AudioQualityKey, AudioQuality.AUTO.name)
     var crossfadeEnabled by rememberPreference(CrossfadeEnabledKey, false)
-    var crossfadeDuration by rememberPreference(CrossfadeDurationKey, 5f)
+    var crossfadeDurationPreference by rememberPreference(CrossfadeDurationKey, 5f)
+    var crossfadeDuration by remember { mutableStateOf(crossfadeDurationPreference) }
+    var cacheSize by rememberPreference(MaxSongCacheSizeKey, 1024)
+
+    LaunchedEffect(crossfadeDurationPreference) { crossfadeDuration = crossfadeDurationPreference }
 
     val playbackSettings = listOf(
-        BooleanSetting("Autoplay", "Continue with related music when the queue ends.", AutoplayKey, true),
-        BooleanSetting("Persistent queue", "Restore the last queue after reopening DiyyMusic.", PersistentQueueKey, true),
-        BooleanSetting("Remember shuffle and repeat", "Keep both modes between sessions.", RememberShuffleAndRepeatKey, true),
-        BooleanSetting("Auto radio queue", "Load related tracks near the end of the queue.", AutoRadioQueueKey, true),
-        BooleanSetting("Prevent duplicate tracks", "Avoid inserting the same song repeatedly.", PreventDuplicateTracksInQueueKey, true),
-        BooleanSetting("Skip failed songs", "Move to the next track when playback cannot recover.", AutoSkipNextOnErrorKey, true),
-        BooleanSetting("Stop when app is cleared", "Stop playback after removing DiyyMusic from recents.", StopMusicOnTaskClearKey, false),
+        BooleanSetting("Autoplay", "Continue with related music when the queue ends.", AutoplayKey, true, icon = R.drawable.play),
+        BooleanSetting("Persistent queue", "Restore the last queue after reopening DiyyMusic.", PersistentQueueKey, true, icon = R.drawable.queue_music),
+        BooleanSetting("Remember shuffle and repeat", "Keep both playback modes between sessions.", RememberShuffleAndRepeatKey, true, icon = R.drawable.repeat),
+        BooleanSetting("Auto radio queue", "Load related tracks near the end of the queue.", AutoRadioQueueKey, true, icon = R.drawable.radio),
+        BooleanSetting("Prevent duplicate tracks", "Avoid inserting the same song repeatedly.", PreventDuplicateTracksInQueueKey, true, icon = R.drawable.content_copy),
+        BooleanSetting("Skip failed songs", "Move on when playback cannot recover.", AutoSkipNextOnErrorKey, true, icon = R.drawable.skip_next),
+        BooleanSetting("Stop when app is cleared", "Stop playback after removing DiyyMusic from recents.", StopMusicOnTaskClearKey, false, icon = R.drawable.close),
     )
     val audioSettings = listOf(
-        BooleanSetting("Normalize volume", "Balance loud and quiet tracks.", AudioNormalizationKey, true),
-        BooleanSetting("Skip silence", "Skip silent sections when supported.", SkipSilenceKey, false),
-        BooleanSetting("Instant silence skip", "Use more aggressive silence detection.", SkipSilenceInstantKey, false),
-        BooleanSetting("Audio offload", "Let supported hardware handle audio decoding.", AudioOffload, false),
-        BooleanSetting("Pause on mute", "Pause playback when volume reaches zero.", PauseOnMute, false),
-        BooleanSetting("Resume on Bluetooth connect", "Continue playback after your device reconnects.", ResumeOnBluetoothConnectKey, false),
-        BooleanSetting("Keep screen awake", "Prevent the display from sleeping while DiyyMusic is open.", KeepScreenOn, false),
+        BooleanSetting("Normalize volume", "Balance loud and quiet tracks.", AudioNormalizationKey, true, icon = R.drawable.graphic_eq),
+        BooleanSetting("Skip silence", "Automatically skip silent sections when supported.", SkipSilenceKey, false, icon = R.drawable.fast_forward),
+        BooleanSetting("Instant silence skip", "Use more aggressive silence detection.", SkipSilenceInstantKey, false, icon = R.drawable.speed),
+        BooleanSetting("Audio offload", "Let supported hardware reduce CPU usage.", AudioOffload, false, icon = R.drawable.equalizer),
+        BooleanSetting("Pause on mute", "Pause playback when device volume reaches zero.", PauseOnMute, false, icon = R.drawable.volume_off_pause),
+        BooleanSetting("Resume on Bluetooth", "Continue playback after a device reconnects.", ResumeOnBluetoothConnectKey, false, icon = R.drawable.bluetooth),
+        BooleanSetting("Keep screen awake", "Prevent the display from sleeping while the player is open.", KeepScreenOn, false, icon = R.drawable.time_auto),
     )
 
-    LazyColumn(modifier = modifier, contentPadding = PaddingValues(bottom = 28.dp)) {
-        item { DiyyScreenHeader("Player and Audio", onBack = onBack) }
+    LazyColumn(modifier = modifier, contentPadding = PaddingValues(bottom = 32.dp)) {
+        item {
+            DiyyScreenHeader(
+                title = "Player & Audio",
+                subtitle = "Fine-tune how DiyyMusic plays and sounds.",
+                onBack = onBack,
+            )
+        }
         item { SettingsLabel("Streaming quality") }
         item {
             FigmaGroupedList(modifier = Modifier.padding(horizontal = 18.dp)) {
@@ -401,37 +576,80 @@ private fun PlayerAudioDetail(onBack: () -> Unit, modifier: Modifier) {
                 )
             }
         }
-        item { SettingsLabel("Transitions") }
+
+        item { SettingsLabel("Crossfade") }
         item {
             FigmaGroupedList(modifier = Modifier.padding(horizontal = 18.dp)) {
                 InlineSwitchRow(
                     title = "Crossfade",
                     subtitle = "Blend the end of one track into the next.",
                     checked = crossfadeEnabled,
+                    icon = R.drawable.graphic_eq,
                     onCheckedChange = { crossfadeEnabled = it },
                 )
-                if (crossfadeEnabled) {
-                    FigmaDivider()
-                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                        Text("Duration: ${crossfadeDuration.toInt()} seconds", fontWeight = FontWeight.Medium)
-                        Slider(
+                AnimatedVisibility(visible = crossfadeEnabled) {
+                    Column {
+                        FigmaDivider()
+                        SliderPreferenceRow(
+                            title = "Duration",
+                            subtitle = "How long the transition should overlap.",
+                            icon = R.drawable.timer,
                             value = crossfadeDuration,
                             onValueChange = { crossfadeDuration = it },
+                            onValueChangeFinished = { crossfadeDurationPreference = crossfadeDuration },
                             valueRange = 1f..12f,
                             steps = 10,
+                            valueText = "${crossfadeDuration.roundToInt()} sec",
+                        )
+                        FigmaDivider()
+                        PreferenceSwitchRow(
+                            BooleanSetting(
+                                "Gapless handoff",
+                                "Reduce silence before the next track starts.",
+                                CrossfadeGaplessKey,
+                                true,
+                                icon = R.drawable.cached,
+                            ),
                         )
                     }
-                    FigmaDivider()
-                    PreferenceSwitchRow(
-                        BooleanSetting("Gapless handoff", "Reduce silence before crossfade starts.", CrossfadeGaplessKey, true),
-                    )
                 }
             }
         }
+
         item { SettingsLabel("Playback") }
         item { BooleanSettingsGroup(playbackSettings, Modifier.padding(horizontal = 18.dp)) }
         item { SettingsLabel("Audio behavior") }
         item { BooleanSettingsGroup(audioSettings, Modifier.padding(horizontal = 18.dp)) }
+
+        item { SettingsLabel("Downloads & cache") }
+        item {
+            FigmaGroupedList(modifier = Modifier.padding(horizontal = 18.dp)) {
+                PreferenceSwitchRow(
+                    BooleanSetting(
+                        "Song cache",
+                        "Cache streamed audio for faster replay.",
+                        EnableSongCacheKey,
+                        true,
+                        icon = R.drawable.offline,
+                    ),
+                )
+                FigmaDivider()
+                DropdownPreferenceRow(
+                    title = "Cache size",
+                    subtitle = "Set the maximum storage used by temporary audio.",
+                    icon = R.drawable.storage,
+                    selected = cacheSize.toString(),
+                    options = listOf(
+                        "256" to "256 MB",
+                        "512" to "512 MB",
+                        "1024" to "1 GB",
+                        "2048" to "2 GB",
+                        "4096" to "4 GB",
+                    ),
+                    onSelected = { selected -> cacheSize = selected.toIntOrNull() ?: 1024 },
+                )
+            }
+        }
     }
 }
 
@@ -483,12 +701,11 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
     val actionButtonsEnabled = button1Enabled || button2Enabled
 
     LazyColumn(modifier = modifier, contentPadding = PaddingValues(bottom = 36.dp)) {
-        item { DiyyScreenHeader("Discord Rich Presence", onBack = onBack) }
         item {
-            Text(
-                text = "Show what you’re listening to on Discord.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
+            DiyyScreenHeader(
+                title = "Discord Rich Presence",
+                subtitle = "Show what you’re listening to on Discord.",
+                onBack = onBack,
             )
         }
         item {
@@ -913,6 +1130,7 @@ private fun PreferenceSwitchRow(
         subtitle = setting.subtitle,
         checked = checked,
         enabled = enabled,
+        icon = setting.icon,
         onCheckedChange = { value ->
             scope.launch {
                 context.dataStore.edit { preferences ->
@@ -930,6 +1148,7 @@ private fun InlineSwitchRow(
     subtitle: String,
     checked: Boolean,
     enabled: Boolean = true,
+    icon: Int? = null,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     Row(
@@ -939,6 +1158,23 @@ private fun InlineSwitchRow(
             .padding(horizontal = 16.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (icon != null) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(DiyySoftRed),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(icon),
+                    contentDescription = null,
+                    tint = DiyyRed,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+        }
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 title,
@@ -952,6 +1188,68 @@ private fun InlineSwitchRow(
             )
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
+    }
+}
+
+@Composable
+private fun SliderPreferenceRow(
+    title: String,
+    subtitle: String,
+    icon: Int,
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    valueText: String,
+    steps: Int = 0,
+    onValueChangeFinished: (() -> Unit)? = null,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(DiyySoftRed),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(icon),
+                contentDescription = null,
+                tint = DiyyRed,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(title, style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(
+                    text = valueText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = DiyyRed,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            Slider(
+                value = value,
+                onValueChange = onValueChange,
+                onValueChangeFinished = onValueChangeFinished,
+                valueRange = valueRange,
+                steps = steps,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
 
