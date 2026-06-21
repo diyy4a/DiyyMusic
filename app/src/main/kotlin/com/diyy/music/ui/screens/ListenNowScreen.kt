@@ -2,17 +2,22 @@ package com.diyy.music.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -54,6 +59,9 @@ fun ListenNowScreen(
     val recentEvents by viewModel.database.events().collectAsStateWithLifecycle(initialValue = emptyList())
     val quickPicks by viewModel.quickPicks.collectAsStateWithLifecycle()
     val homePage by viewModel.homePage.collectAsStateWithLifecycle()
+    val accountImageUrl by viewModel.accountImageUrl.collectAsStateWithLifecycle()
+    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
+    val pullToRefreshState = rememberPullToRefreshState()
     val greeting = remember {
         when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
             in 4..10 -> "Good morning"
@@ -64,15 +72,31 @@ fun ListenNowScreen(
 
     LaunchedEffect(Unit) { viewModel.loadHomeData() }
 
-    LazyColumn(
-        modifier = modifier,
-        contentPadding = PaddingValues(bottom = 24.dp),
+    PullToRefreshBox(
+        modifier = modifier.fillMaxSize(),
+        state = pullToRefreshState,
+        isRefreshing = isRefreshing,
+        onRefresh = viewModel::refresh,
+        indicator = {
+            Indicator(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 10.dp),
+                isRefreshing = isRefreshing,
+                state = pullToRefreshState,
+            )
+        },
     ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 24.dp),
+        ) {
         item {
             DiyyScreenHeader(
                 title = greeting,
                 onHistory = onOpenHistory,
                 onProfile = onOpenProfile,
+                profileImageUrl = accountImageUrl,
             )
         }
         item {
@@ -219,6 +243,7 @@ fun ListenNowScreen(
                     }
                 }
             }
+        }
         }
     }
 }

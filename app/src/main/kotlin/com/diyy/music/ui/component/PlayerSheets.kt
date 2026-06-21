@@ -1,5 +1,11 @@
 package com.diyy.music.ui.component
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -48,6 +55,7 @@ import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -265,21 +273,68 @@ fun DiyyLyricsSheet(
                     ),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    itemsIndexed(lines) { index, line ->
+                    itemsIndexed(lines, key = { index, line -> "${line.timeMs ?: -1L}-$index-${line.text}" }) { index, line ->
                         val active = index == activeIndex
+                        val distance = if (activeIndex >= 0) abs(index - activeIndex) else 2
+                        val targetScale = when {
+                            activeIndex < 0 -> 1f
+                            active -> 1.045f
+                            distance == 1 -> 0.985f
+                            else -> 0.95f
+                        }
+                        val targetAlpha = when {
+                            activeIndex < 0 -> 0.82f
+                            active -> 1f
+                            distance == 1 -> 0.68f
+                            distance == 2 -> 0.46f
+                            else -> 0.28f
+                        }
+                        val scale by animateFloatAsState(
+                            targetValue = targetScale,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMediumLow,
+                            ),
+                            label = "lyricScale",
+                        )
+                        val alpha by animateFloatAsState(
+                            targetValue = targetAlpha,
+                            animationSpec = tween(260),
+                            label = "lyricAlpha",
+                        )
+                        val color by animateColorAsState(
+                            targetValue = if (active) DiyyRed else MaterialTheme.colorScheme.onSurface,
+                            animationSpec = tween(240),
+                            label = "lyricColor",
+                        )
+                        val fontSize by animateFloatAsState(
+                            targetValue = if (active) 23f else 18f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioNoBouncy,
+                                stiffness = Spring.StiffnessMediumLow,
+                            ),
+                            label = "lyricFontSize",
+                        )
+
                         Text(
                             text = line.text,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
+                                .graphicsLayer {
+                                    scaleX = scale
+                                    scaleY = scale
+                                    this.alpha = alpha
+                                }
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(if (active) DiyyRed.copy(alpha = 0.08f) else androidx.compose.ui.graphics.Color.Transparent)
                                 .clickable(enabled = line.timeMs != null) {
                                     line.timeMs?.let(playerConnection::seekTo)
                                 }
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
-                            color = if (active) DiyyRed else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
+                                .padding(horizontal = 14.dp, vertical = if (active) 12.dp else 7.dp),
+                            color = color,
                             fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-                            fontSize = if (active) 22.sp else 18.sp,
-                            lineHeight = if (active) 29.sp else 25.sp,
+                            fontSize = fontSize.sp,
+                            lineHeight = (fontSize + 7f).sp,
                             textAlign = TextAlign.Center,
                         )
                     }

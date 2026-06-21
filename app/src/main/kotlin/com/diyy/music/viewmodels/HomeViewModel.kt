@@ -679,25 +679,32 @@ class HomeViewModel @Inject constructor(
         if (isRefreshing.value) return
         isRefreshing.value = true
         viewModelScope.launch(Dispatchers.IO) {
-            // If a chip is selected, reload the chip's content instead of the default home
-            val currentChip = selectedChip.value
-            if (currentChip != null) {
-                val hideExplicit = context.dataStore.get(HideExplicitKey, false)
-                val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
-                val hideYoutubeShorts = context.dataStore.get(HideYoutubeShortsKey, false)
-                val nextSections = YouTube.home(params = currentChip.endpoint?.params).getOrNull()
-                if (nextSections != null) {
-                    homePage.value = nextSections.copy(
-                        chips = homePage.value?.chips,
-                        sections = nextSections.sections.map { section ->
-                            section.copy(items = section.items.filterExplicit(hideExplicit).filterVideoSongs(hideVideoSongs).filterYoutubeShorts(hideYoutubeShorts))
-                        }
-                    )
+            try {
+                // Refresh only the Home data. Playback belongs to MusicService, so
+                // pulling down never rebuilds or stops the active player queue.
+                val currentChip = selectedChip.value
+                if (currentChip != null) {
+                    val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+                    val hideVideoSongs = context.dataStore.get(HideVideoSongsKey, false)
+                    val hideYoutubeShorts = context.dataStore.get(HideYoutubeShortsKey, false)
+                    val nextSections = YouTube.home(params = currentChip.endpoint?.params).getOrNull()
+                    if (nextSections != null) {
+                        homePage.value = nextSections.copy(
+                            chips = homePage.value?.chips,
+                            sections = nextSections.sections.map { section ->
+                                section.copy(items = section.items.filterExplicit(hideExplicit).filterVideoSongs(hideVideoSongs).filterYoutubeShorts(hideYoutubeShorts))
+                            }
+                        )
+                    }
+                } else {
+                    load()
                 }
-            } else {
-                load()
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to refresh Home")
+                reportException(e)
+            } finally {
+                isRefreshing.value = false
             }
-            isRefreshing.value = false
         }
         // Run sync when user manually refreshes
         viewModelScope.launch(Dispatchers.IO) {

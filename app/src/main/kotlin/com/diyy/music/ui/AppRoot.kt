@@ -1,6 +1,11 @@
 package com.diyy.music.ui
 
 import android.net.Uri
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
@@ -40,6 +46,7 @@ import com.diyy.music.playback.PlayerConnection
 import com.diyy.music.ui.component.DiyyBottomNavigation
 import com.diyy.music.ui.component.DiyyBrandMark
 import com.diyy.music.ui.component.DiyyMiniPlayer
+import com.diyy.music.ui.component.DiyyPageMotion
 import com.diyy.music.ui.screens.CollectionScreen
 import com.diyy.music.ui.screens.HistoryScreen
 import com.diyy.music.ui.screens.LibraryDisplayScreen
@@ -139,114 +146,136 @@ fun DiyyMusicRoot(
             modifier = Modifier.padding(innerPadding),
         ) {
             composable(DiyyMainTab.LISTEN_NOW.route) {
-                ListenNowScreen(
-                    playerConnection = playerConnection,
-                    onOpenProfile = { navigateToTab(navController, DiyyMainTab.PROFILE) },
-                    onOpenHistory = { navController.navigate(DiyyRoutes.HISTORY) },
-                    onOpenRadio = { navController.navigate(DiyyRoutes.RADIO) },
-                    onOpenCollection = { openCollection(navController, it) },
-                )
+                DiyyPageMotion {
+                    ListenNowScreen(
+                        playerConnection = playerConnection,
+                        onOpenProfile = { navigateToTab(navController, DiyyMainTab.PROFILE) },
+                        onOpenHistory = { navController.navigate(DiyyRoutes.HISTORY) },
+                        onOpenRadio = { navController.navigate(DiyyRoutes.RADIO) },
+                        onOpenCollection = { openCollection(navController, it) },
+                    )
+                }
             }
             composable(DiyyMainTab.SEARCH.route) {
-                SearchScreen(
-                    playerConnection = playerConnection,
-                    initialQuery = searchSeed,
-                    onOpenCollection = { openCollection(navController, it) },
-                )
+                DiyyPageMotion {
+                    SearchScreen(
+                        playerConnection = playerConnection,
+                        initialQuery = searchSeed,
+                        onOpenCollection = { openCollection(navController, it) },
+                    )
+                }
             }
             composable(DiyyMainTab.LIBRARY.route) {
-                LibraryScreen(
-                    database = database,
-                    playerConnection = playerConnection,
-                    onOpenProfile = { navigateToTab(navController, DiyyMainTab.PROFILE) },
-                    onOpenHistory = { navController.navigate(DiyyRoutes.HISTORY) },
-                    onOpenCollection = { openCollection(navController, it) },
-                    onOpenDisplayOptions = { navController.navigate(DiyyRoutes.DISPLAY_OPTIONS) },
-                )
+                DiyyPageMotion {
+                    LibraryScreen(
+                        database = database,
+                        playerConnection = playerConnection,
+                        onOpenProfile = { navigateToTab(navController, DiyyMainTab.PROFILE) },
+                        onOpenHistory = { navController.navigate(DiyyRoutes.HISTORY) },
+                        onOpenCollection = { openCollection(navController, it) },
+                        onOpenDisplayOptions = { navController.navigate(DiyyRoutes.DISPLAY_OPTIONS) },
+                    )
+                }
             }
             composable(DiyyMainTab.PROFILE.route) {
-                ProfileScreen(
-                    database = database,
-                    onBack = null,
-                    onOpenFeature = { section -> navController.navigate("feature/${Uri.encode(section)}") },
-                    onOpenCollection = { openCollection(navController, it) },
-                    onLogout = {
-                        scope.launch {
-                            context.dataStore.edit { preferences ->
-                                preferences.remove(InnerTubeCookieKey)
+                DiyyPageMotion {
+                    ProfileScreen(
+                        database = database,
+                        onBack = null,
+                        onOpenFeature = { section -> navController.navigate("feature/${Uri.encode(section)}") },
+                        onOpenCollection = { openCollection(navController, it) },
+                        onLogout = {
+                            scope.launch {
+                                context.dataStore.edit { preferences ->
+                                    preferences.remove(InnerTubeCookieKey)
+                                }
                             }
-                        }
-                    },
-                )
+                        },
+                    )
+                }
             }
             composable(DiyyRoutes.RADIO) {
-                RadioScreen(
-                    onBack = navController::navigateUp,
-                    onOpenProfile = { navigateToTab(navController, DiyyMainTab.PROFILE) },
-                    onOpenHistory = { navController.navigate(DiyyRoutes.HISTORY) },
-                    onSearchStation = { query ->
-                        searchSeed = query
-                        navigateToTab(navController, DiyyMainTab.SEARCH)
-                    },
-                )
+                DiyyPageMotion {
+                    RadioScreen(
+                        onBack = navController::navigateUp,
+                        onOpenProfile = { navigateToTab(navController, DiyyMainTab.PROFILE) },
+                        onOpenHistory = { navController.navigate(DiyyRoutes.HISTORY) },
+                        onSearchStation = { query ->
+                            searchSeed = query
+                            navigateToTab(navController, DiyyMainTab.SEARCH)
+                        },
+                    )
+                }
             }
             composable(DiyyRoutes.PLAYER) {
-                PlayerScreen(
-                    playerConnection = playerConnection,
-                    downloadUtil = downloadUtil,
-                    onBack = navController::navigateUp,
-                )
+                DiyyPageMotion {
+                    PlayerScreen(
+                        playerConnection = playerConnection,
+                        downloadUtil = downloadUtil,
+                        onBack = navController::navigateUp,
+                    )
+                }
             }
             composable(DiyyRoutes.LOGIN) {
-                LoginScreen(onBack = navController::navigateUp)
+                DiyyPageMotion { LoginScreen(onBack = navController::navigateUp) }
             }
             composable(
                 route = DiyyRoutes.FEATURE,
                 arguments = listOf(navArgument("section") { type = NavType.StringType }),
             ) { entry ->
-                SettingDetailScreen(
-                    section = Uri.decode(entry.arguments?.getString("section").orEmpty()),
-                    onBack = navController::navigateUp,
-                    onOpenLogin = { navController.navigate(DiyyRoutes.LOGIN) },
-                )
+                DiyyPageMotion {
+                    SettingDetailScreen(
+                        section = Uri.decode(entry.arguments?.getString("section").orEmpty()),
+                        onBack = navController::navigateUp,
+                        onOpenLogin = { navController.navigate(DiyyRoutes.LOGIN) },
+                    )
+                }
             }
             composable(DiyyRoutes.SETTINGS) {
-                SettingsScreen(
-                    onBack = navController::navigateUp,
-                    onOpenSection = { section -> navController.navigate("settings/${Uri.encode(section)}") },
-                )
+                DiyyPageMotion {
+                    SettingsScreen(
+                        onBack = navController::navigateUp,
+                        onOpenSection = { section -> navController.navigate("settings/${Uri.encode(section)}") },
+                    )
+                }
             }
             composable(
                 route = "settings/{section}",
                 arguments = listOf(navArgument("section") { type = NavType.StringType }),
             ) { entry ->
-                SettingDetailScreen(
-                    section = Uri.decode(entry.arguments?.getString("section").orEmpty()),
-                    onBack = navController::navigateUp,
-                    onOpenLogin = { navController.navigate(DiyyRoutes.LOGIN) },
-                )
+                DiyyPageMotion {
+                    SettingDetailScreen(
+                        section = Uri.decode(entry.arguments?.getString("section").orEmpty()),
+                        onBack = navController::navigateUp,
+                        onOpenLogin = { navController.navigate(DiyyRoutes.LOGIN) },
+                    )
+                }
             }
             composable(DiyyRoutes.HISTORY) {
-                HistoryScreen(
-                    database = database,
-                    playerConnection = playerConnection,
-                    onBack = navController::navigateUp,
-                )
+                DiyyPageMotion {
+                    HistoryScreen(
+                        database = database,
+                        playerConnection = playerConnection,
+                        onBack = navController::navigateUp,
+                    )
+                }
             }
             composable(DiyyRoutes.DISPLAY_OPTIONS) {
-                LibraryDisplayScreen(onBack = navController::navigateUp)
+                DiyyPageMotion { LibraryDisplayScreen(onBack = navController::navigateUp) }
             }
             composable(
                 route = DiyyRoutes.COLLECTION,
                 arguments = listOf(navArgument("type") { type = NavType.StringType }),
             ) { entry ->
-                CollectionScreen(
-                    type = Uri.decode(entry.arguments?.getString("type").orEmpty()),
-                    database = database,
-                    playerConnection = playerConnection,
-                    onBack = navController::navigateUp,
-                    onOpenCollection = { openCollection(navController, it) },
-                )
+                DiyyPageMotion {
+                    CollectionScreen(
+                        type = Uri.decode(entry.arguments?.getString("type").orEmpty()),
+                        database = database,
+                        playerConnection = playerConnection,
+                        onBack = navController::navigateUp,
+                        onOpenCollection = { openCollection(navController, it) },
+                    )
+                }
             }
         }
     }
@@ -285,6 +314,17 @@ private fun rememberMiniPlayerProgress(playerConnection: PlayerConnection?): Flo
 
 @Composable
 private fun DiyyStartupSplash() {
+    val transition = rememberInfiniteTransition(label = "startupPulse")
+    val pulse by transition.animateFloat(
+        initialValue = 0.96f,
+        targetValue = 1.045f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(850),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "startupLogoScale",
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -292,9 +332,16 @@ private fun DiyyStartupSplash() {
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            DiyyBrandMark(showName = true)
+            DiyyBrandMark(
+                modifier = Modifier.graphicsLayer {
+                    scaleX = pulse
+                    scaleY = pulse
+                    alpha = 0.92f + ((pulse - 0.96f) * 1.2f)
+                },
+                showName = true,
+            )
             CircularProgressIndicator(
-                modifier = Modifier.padding(top = 18.dp).size(24.dp),
+                modifier = Modifier.padding(top = 22.dp).size(24.dp),
                 color = DiyyRed,
                 strokeWidth = 2.5.dp,
             )

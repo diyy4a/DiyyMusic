@@ -70,6 +70,14 @@ private data class SearchCategory(
     val colors: List<Color>,
 )
 
+private val trendingSearches = listOf(
+    "Taylor Swift",
+    "The Weeknd",
+    "Raisa",
+    "Joji",
+    "Nadin Amizah",
+)
+
 private val searchCategories = listOf(
     SearchCategory("Pop", "Popular hits", R.drawable.favorite, listOf(Color(0xFFFFB7D0), Color(0xFFFFE4ED))),
     SearchCategory("Chill", "Slow & dreamy", R.drawable.cloud, listOf(Color(0xFFD5BCFF), Color(0xFFF0E8FF))),
@@ -137,6 +145,28 @@ fun SearchScreen(
         }
 
         if (query.isBlank()) {
+            item {
+                FigmaSectionHeader(
+                    title = "Trending Searches",
+                    modifier = Modifier.padding(top = 10.dp),
+                )
+            }
+            item {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(9.dp),
+                ) {
+                    items(trendingSearches, key = { it }) { trend ->
+                        SearchChip(
+                            text = trend,
+                            onClick = {
+                                query = trend
+                                submittedQuery = trend
+                            },
+                        )
+                    }
+                }
+            }
             item {
                 FigmaSectionHeader(
                     title = "Browse Categories",
@@ -222,6 +252,19 @@ fun SearchScreen(
                             tint = DiyyRed,
                         )
                     }
+                }
+            }
+            if (state.history.isNotEmpty()) {
+                item { FigmaSectionHeader(title = "Recent Searches") }
+                items(state.history.take(4), key = { "blank-${it.id}" }) { history ->
+                    SuggestionRow(
+                        text = history.query,
+                        icon = R.drawable.history,
+                        onClick = {
+                            query = history.query
+                            submittedQuery = history.query
+                        },
+                    )
                 }
             }
         } else {
@@ -376,6 +419,26 @@ private fun SearchField(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun SearchChip(
+    text: String,
+    onClick: () -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f),
+        onClick = onClick,
+    ) {
+        Text(
+            text = text,
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(horizontal = 15.dp, vertical = 9.dp),
+        )
     }
 }
 

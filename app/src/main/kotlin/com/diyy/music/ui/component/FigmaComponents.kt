@@ -2,13 +2,25 @@ package com.diyy.music.ui.component
 
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -39,12 +51,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -84,9 +100,19 @@ fun LiquidGlassBox(
     val top = if (dark) Color(0xE62A2830) else Color(0xF2FFFFFF)
     val bottom = if (dark) Color(0xD91C1A20) else DiyyGlass
     val border = if (dark) Color.White.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.92f)
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed && onClick != null) 0.975f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium,
+        ),
+        label = "glassPressScale",
+    )
     val clickableModifier = if (onClick != null) {
         Modifier.clickable(
-            interactionSource = remember { MutableInteractionSource() },
+            interactionSource = interactionSource,
             indication = null,
             onClick = onClick,
         )
@@ -96,6 +122,11 @@ fun LiquidGlassBox(
 
     Box(
         modifier = modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                alpha = if (pressed && onClick != null) 0.96f else 1f
+            }
             .shadow(elevation, shape, clip = false)
             .clip(shape)
             .background(Brush.verticalGradient(listOf(top, bottom)))
@@ -103,6 +134,33 @@ fun LiquidGlassBox(
             .then(clickableModifier),
         content = content,
     )
+}
+
+@Composable
+fun DiyyPageMotion(
+    modifier: Modifier = Modifier,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+
+    AnimatedVisibility(
+        visible = visible,
+        modifier = modifier.fillMaxSize(),
+        enter = fadeIn(tween(220)) +
+            slideInVertically(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow,
+                ),
+                initialOffsetY = { it / 18 },
+            ) + scaleIn(initialScale = 0.988f, animationSpec = tween(260)),
+        exit = fadeOut(tween(140)) +
+            slideOutVertically(targetOffsetY = { -it / 30 }, animationSpec = tween(160)) +
+            scaleOut(targetScale = 0.992f, animationSpec = tween(160)),
+    ) {
+        Box(modifier = Modifier.fillMaxSize(), content = content)
+    }
 }
 
 @Composable
@@ -139,6 +197,7 @@ fun DiyyScreenHeader(
     onBack: (() -> Unit)? = null,
     onHistory: (() -> Unit)? = null,
     onProfile: (() -> Unit)? = null,
+    profileImageUrl: String? = null,
     trailing: (@Composable RowScope.() -> Unit)? = null,
 ) {
     Column(
@@ -175,9 +234,8 @@ fun DiyyScreenHeader(
                     )
                 }
                 onProfile != null -> {
-                    FigmaCircleButton(
-                        icon = R.drawable.account,
-                        contentDescription = "Profile",
+                    DiyyAvatarButton(
+                        imageUrl = profileImageUrl,
                         onClick = onProfile,
                     )
                 }
@@ -185,9 +243,8 @@ fun DiyyScreenHeader(
             }
             if (onHistory != null && onProfile != null) {
                 Spacer(Modifier.width(8.dp))
-                FigmaCircleButton(
-                    icon = R.drawable.account,
-                    contentDescription = "Profile",
+                DiyyAvatarButton(
+                    imageUrl = profileImageUrl,
                     onClick = onProfile,
                 )
             }
@@ -201,6 +258,46 @@ fun DiyyScreenHeader(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+    }
+}
+
+@Composable
+fun DiyyAvatarButton(
+    imageUrl: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LiquidGlassBox(
+        modifier = modifier.size(46.dp),
+        shape = RoundedCornerShape(23.dp),
+        elevation = 8.dp,
+        onClick = onClick,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .align(Alignment.Center)
+                .clip(CircleShape)
+                .background(DiyySoftRed)
+                .border(1.5.dp, DiyyRed.copy(alpha = 0.75f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (!imageUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = imageUrl,
+                    contentDescription = "Profile",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            } else {
+                Icon(
+                    painter = painterResource(R.drawable.account),
+                    contentDescription = "Profile",
+                    tint = DiyyRed,
+                    modifier = Modifier.size(21.dp),
+                )
+            }
+        }
     }
 }
 
@@ -257,12 +354,25 @@ fun DiyyBottomNavigation(
                     val active = selected == tab
                     val tint by animateColorAsState(
                         targetValue = if (active) DiyyRed else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.74f),
+                        animationSpec = tween(220),
                         label = "navigationTint",
+                    )
+                    val itemScale by animateFloatAsState(
+                        targetValue = if (active) 1.06f else 1f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMedium,
+                        ),
+                        label = "navigationScale",
                     )
                     Column(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
+                            .graphicsLayer {
+                                scaleX = itemScale
+                                scaleY = itemScale
+                            }
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
@@ -556,48 +666,55 @@ fun FigmaMediaGridItem(
     modifier: Modifier = Modifier,
     circular: Boolean = false,
 ) {
-    Column(modifier = modifier.clickable(onClick = onClick)) {
-        Box {
-            Artwork(
-                url = imageUrl,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .then(if (circular) Modifier.clip(CircleShape) else Modifier),
-                cornerRadius = if (circular) 100 else 20,
-            )
-            Surface(
-                modifier = Modifier
-                    .size(34.dp)
-                    .align(Alignment.BottomEnd)
-                    .padding(3.dp),
-                shape = CircleShape,
-                color = DiyyRed,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.play),
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.padding(8.dp),
+    LiquidGlassBox(
+        modifier = modifier,
+        shape = RoundedCornerShape(24.dp),
+        elevation = 7.dp,
+        onClick = onClick,
+    ) {
+        Column(modifier = Modifier.padding(8.dp)) {
+            Box {
+                Artwork(
+                    url = imageUrl,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
+                        .then(if (circular) Modifier.clip(CircleShape) else Modifier),
+                    cornerRadius = if (circular) 100 else 18,
                 )
+                Surface(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .align(Alignment.BottomEnd)
+                        .padding(3.dp),
+                    shape = CircleShape,
+                    color = DiyyRed,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.play),
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.padding(9.dp),
+                    )
+                }
             }
-        }
-        Spacer(Modifier.height(9.dp))
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        if (!subtitle.isNullOrBlank()) {
+            Spacer(Modifier.height(9.dp))
             Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }

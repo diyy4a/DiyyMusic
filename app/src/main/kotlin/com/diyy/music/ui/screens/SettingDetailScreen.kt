@@ -3,6 +3,11 @@ package com.diyy.music.ui.screens
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -72,11 +77,16 @@ import com.diyy.music.constants.DarkMode
 import com.diyy.music.constants.DarkModeKey
 import com.diyy.music.constants.DataSyncIdKey
 import com.diyy.music.constants.DisableScreenshotKey
+import com.diyy.music.constants.DiscordActivityTypeKey
+import com.diyy.music.constants.DiscordAdvancedModeKey
 import com.diyy.music.constants.DiscordAvatarKey
 import com.diyy.music.constants.DiscordButton1EnabledKey
 import com.diyy.music.constants.DiscordButton2EnabledKey
+import com.diyy.music.constants.DiscordDetailsTemplateKey
 import com.diyy.music.constants.DiscordNameKey
+import com.diyy.music.constants.DiscordStateTemplateKey
 import com.diyy.music.constants.DiscordUsernameKey
+import com.diyy.music.constants.DiscordUserStatusKey
 import com.diyy.music.constants.EnableDiscordRPCKey
 import com.diyy.music.constants.EnableHighRefreshRateKey
 import com.diyy.music.constants.EnableSongCacheKey
@@ -100,6 +110,7 @@ import com.diyy.music.constants.SkipSilenceKey
 import com.diyy.music.constants.StopMusicOnTaskClearKey
 import com.diyy.music.constants.VisitorDataKey
 import com.diyy.music.constants.YtmSyncKey
+import com.diyy.music.discord.DiscordDefaults
 import com.diyy.music.discord.DiscordRpcManager
 import com.diyy.music.ui.component.DiyyScreenHeader
 import com.diyy.music.ui.component.FigmaDivider
@@ -422,10 +433,25 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
     var discordName by rememberPreference(DiscordNameKey, "")
     var discordUsername by rememberPreference(DiscordUsernameKey, "")
     var discordAvatar by rememberPreference(DiscordAvatarKey, "")
+    var enabled by rememberPreference(EnableDiscordRPCKey, true)
+    var button1Enabled by rememberPreference(DiscordButton1EnabledKey, true)
+    var button2Enabled by rememberPreference(DiscordButton2EnabledKey, true)
+    var advancedMode by rememberPreference(DiscordAdvancedModeKey, false)
+    var activityType by rememberPreference(DiscordActivityTypeKey, DiscordDefaults.ACTIVITY_TYPE_LISTENING)
+    var stateTemplate by rememberPreference(DiscordStateTemplateKey, DiscordDefaults.STATE_TEMPLATE)
+    var detailsTemplate by rememberPreference(DiscordDetailsTemplateKey, DiscordDefaults.DETAILS_TEMPLATE)
+    var userStatus by rememberPreference(DiscordUserStatusKey, DiscordDefaults.USER_STATUS)
+    var advancedExpanded by rememberSaveable { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         if (!DiscordRpcManager.isInitialized()) DiscordRpcManager.init(context.applicationContext)
+    }
+    LaunchedEffect(accessToken) {
+        val token = accessToken
+        if (!token.isNullOrBlank() && currentUser == null) {
+            withContext(Dispatchers.IO) { DiscordRpcManager.fetchCurrentUser(token) }
+        }
     }
     LaunchedEffect(currentUser) {
         currentUser?.let { user ->
@@ -441,20 +467,28 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
         DiscordRpcManager.Status.Authorizing -> "Waiting for Discord authorization"
         DiscordRpcManager.Status.Disconnected -> if (connected) "Authorized, reconnecting" else "Not connected"
     }
+    val actionButtonsEnabled = button1Enabled || button2Enabled
 
-    LazyColumn(modifier = modifier, contentPadding = PaddingValues(bottom = 28.dp)) {
+    LazyColumn(modifier = modifier, contentPadding = PaddingValues(bottom = 36.dp)) {
         item { DiyyScreenHeader("Discord Rich Presence", onBack = onBack) }
+        item {
+            Text(
+                text = "Show what you’re listening to on Discord.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
+            )
+        }
         item {
             LiquidGlassBox(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
-                shape = RoundedCornerShape(28.dp),
-                elevation = 10.dp,
+                shape = RoundedCornerShape(30.dp),
+                elevation = 12.dp,
             ) {
                 Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .size(56.dp)
+                                .size(68.dp)
                                 .clip(CircleShape)
                                 .background(MaterialTheme.colorScheme.surfaceVariant),
                             contentAlignment = Alignment.Center,
@@ -462,8 +496,8 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
                             if (connected && discordAvatar.isNotBlank()) {
                                 AsyncImage(
                                     model = discordAvatar,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(56.dp).clip(CircleShape),
+                                    contentDescription = "Discord profile",
+                                    modifier = Modifier.size(68.dp).clip(CircleShape),
                                 )
                             } else {
                                 Text("D", style = MaterialTheme.typography.headlineMedium, color = DiyyRed)
@@ -473,7 +507,7 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 if (connected) discordName.ifBlank { "Discord connected" } else "Discord not connected",
-                                style = MaterialTheme.typography.titleMedium,
+                                style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                             )
                             Text(
@@ -496,11 +530,9 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
                                         scope.launch {
                                             busy = false
                                             if (success) {
-                                                context.dataStore.edit { it[EnableDiscordRPCKey] = true }
+                                                enabled = true
                                                 withContext(Dispatchers.IO) {
-                                                    DiscordRpcManager.getAccessToken()?.let { token ->
-                                                        DiscordRpcManager.fetchCurrentUser(token)
-                                                    }
+                                                    DiscordRpcManager.getAccessToken()?.let(DiscordRpcManager::fetchCurrentUser)
                                                 }
                                             }
                                         }
@@ -514,22 +546,37 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
                             Text("Connect Discord")
                         }
                     } else {
-                        OutlinedButton(
-                            onClick = {
-                                DiscordRpcManager.logout()
-                                scope.launch {
-                                    context.dataStore.edit { it[EnableDiscordRPCKey] = false }
-                                }
-                                discordName = ""
-                                discordUsername = ""
-                                discordAvatar = ""
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(18.dp),
-                        ) {
-                            Text("Disconnect Discord", color = MaterialTheme.colorScheme.error)
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            OutlinedButton(
+                                onClick = {
+                                    DiscordRpcManager.getAccessToken()?.let(DiscordRpcManager::reconnectWithToken)
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(18.dp),
+                            ) {
+                                Text("Reconnect")
+                            }
+                            OutlinedButton(
+                                onClick = {
+                                    DiscordRpcManager.logout()
+                                    enabled = false
+                                    discordName = ""
+                                    discordUsername = ""
+                                    discordAvatar = ""
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(18.dp),
+                            ) {
+                                Text("Disconnect", color = MaterialTheme.colorScheme.error)
+                            }
                         }
                     }
+
+                    Text(
+                        text = "This connection is used only by DiyyMusic. The name shown on Discord’s authorization page follows the Discord application ID used for the build.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
 
                     if (!lastError.isNullOrBlank()) {
                         Text(
@@ -541,18 +588,137 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
                 }
             }
         }
+
         item { SettingsLabel("Presence") }
         item {
-            BooleanSettingsGroup(
-                settings = listOf(
-                    BooleanSetting("Enable Rich Presence", "Share the current track on Discord.", EnableDiscordRPCKey, true),
-                    BooleanSetting("Show first button", "Display the first configured Discord action.", DiscordButton1EnabledKey, true),
-                    BooleanSetting("Show second button", "Display the second configured Discord action.", DiscordButton2EnabledKey, true),
-                ),
-                modifier = Modifier.padding(horizontal = 18.dp),
-                enabled = connected,
-                onChanged = { DiscordRpcManager.notifySettingsChanged() },
-            )
+            FigmaGroupedList(modifier = Modifier.padding(horizontal = 18.dp)) {
+                InlineSwitchRow(
+                    title = "Enable Rich Presence",
+                    subtitle = "Share the current track on Discord.",
+                    checked = enabled,
+                    enabled = connected,
+                    onCheckedChange = {
+                        enabled = it
+                        DiscordRpcManager.notifySettingsChanged()
+                    },
+                )
+                FigmaDivider()
+                InlineSwitchRow(
+                    title = "Show action buttons",
+                    subtitle = "Show Listen and DiyyMusic buttons on the activity.",
+                    checked = actionButtonsEnabled,
+                    enabled = connected && enabled,
+                    onCheckedChange = {
+                        button1Enabled = it
+                        button2Enabled = it
+                        DiscordRpcManager.notifySettingsChanged()
+                    },
+                )
+            }
+        }
+
+        item { SettingsLabel("Advanced") }
+        item {
+            LiquidGlassBox(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
+                shape = RoundedCornerShape(26.dp),
+                elevation = 7.dp,
+                onClick = { advancedExpanded = !advancedExpanded },
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 15.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Customize presence", fontWeight = FontWeight.SemiBold)
+                        Text(
+                            if (advancedExpanded) "Hide advanced options" else "Activity style and text format",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(if (advancedExpanded) "−" else "+", color = DiyyRed, style = MaterialTheme.typography.headlineSmall)
+                }
+            }
+        }
+        item {
+            AnimatedVisibility(
+                visible = advancedExpanded,
+                enter = fadeIn() + slideInVertically(initialOffsetY = { it / 8 }),
+                exit = fadeOut() + slideOutVertically(targetOffsetY = { -it / 8 }),
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    FigmaGroupedList {
+                        InlineSwitchRow(
+                            title = "Custom presence text",
+                            subtitle = "Use templates instead of the default song and artist layout.",
+                            checked = advancedMode,
+                            enabled = connected && enabled,
+                            onCheckedChange = {
+                                advancedMode = it
+                                DiscordRpcManager.notifySettingsChanged()
+                            },
+                        )
+                    }
+                    Text("Activity style", fontWeight = FontWeight.SemiBold, color = DiyyRed)
+                    ChoiceRow(
+                        choices = listOf(
+                            DiscordDefaults.ACTIVITY_TYPE_LISTENING to "Listening",
+                            DiscordDefaults.ACTIVITY_TYPE_PLAYING to "Playing",
+                            DiscordDefaults.ACTIVITY_TYPE_WATCHING to "Watching",
+                        ),
+                        selected = activityType,
+                        onSelected = {
+                            activityType = it
+                            DiscordRpcManager.notifySettingsChanged()
+                        },
+                    )
+                    Text("Discord status", fontWeight = FontWeight.SemiBold, color = DiyyRed)
+                    ChoiceRow(
+                        choices = listOf(
+                            DiscordDefaults.USER_STATUS to "Online",
+                            DiscordDefaults.STATUS_IDLE to "Idle",
+                            DiscordDefaults.STATUS_DND to "DND",
+                        ),
+                        selected = userStatus,
+                        onSelected = {
+                            userStatus = it
+                            DiscordRpcManager.notifySettingsChanged()
+                        },
+                    )
+                    AnimatedVisibility(visible = advancedMode) {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            OutlinedTextField(
+                                value = detailsTemplate,
+                                onValueChange = {
+                                    detailsTemplate = it
+                                    DiscordRpcManager.notifySettingsChanged()
+                                },
+                                label = { Text("Main text") },
+                                supportingText = { Text("Example: {song.name}") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                shape = RoundedCornerShape(18.dp),
+                            )
+                            OutlinedTextField(
+                                value = stateTemplate,
+                                onValueChange = {
+                                    stateTemplate = it
+                                    DiscordRpcManager.notifySettingsChanged()
+                                },
+                                label = { Text("Secondary text") },
+                                supportingText = { Text("Example: {artist.name}") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                shape = RoundedCornerShape(18.dp),
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

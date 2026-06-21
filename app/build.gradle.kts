@@ -102,8 +102,8 @@ android {
         applicationId = applicationIdOverride ?: baseApplicationId
         minSdk = 26
         targetSdk = 36
-        versionCode = 16
-        versionName = "0.8.3"
+        versionCode = 18
+        versionName = "0.8.5"
         resValue("string", "app_name", appNameOverride ?: "DiyyMusic")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -122,10 +122,16 @@ android {
         val lastFmKey = localProperties.getProperty("LASTFM_API_KEY") ?: System.getenv("LASTFM_API_KEY") ?: ""
         val lastFmSecret = localProperties.getProperty("LASTFM_SECRET") ?: System.getenv("LASTFM_SECRET") ?: ""
 
+        val discordAppId = (
+            localProperties.getProperty("DISCORD_APP_ID")
+                ?: System.getenv("DISCORD_APP_ID")
+                ?: "1447278780795064401"
+        ).filter(Char::isDigit).ifBlank { "1447278780795064401" }
+
         buildConfigField("String", "LASTFM_API_KEY", "\"$lastFmKey\"")
         buildConfigField("String", "LASTFM_SECRET", "\"$lastFmSecret\"")
         buildConfigField("String", "ARCHITECTURE", "\"$targetAbi\"")
-        buildConfigField("Long", "DISCORD_APP_ID", "1447278780795064401L")
+        buildConfigField("Long", "DISCORD_APP_ID", "${discordAppId}L")
     }
 
     flavorDimensions += listOf("variant")

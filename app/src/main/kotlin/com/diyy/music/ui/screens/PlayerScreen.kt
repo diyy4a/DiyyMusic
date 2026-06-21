@@ -1,5 +1,8 @@
 package com.diyy.music.ui.screens
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -38,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -108,6 +112,22 @@ fun PlayerScreen(
     val isDownloaded = download?.state == Download.STATE_COMPLETED
     val isDownloading = download?.state == Download.STATE_QUEUED || download?.state == Download.STATE_DOWNLOADING
     val downloadProgress = download?.percentDownloaded?.takeIf { it >= 0f }
+    val artworkScale by animateFloatAsState(
+        targetValue = if (isPlaying) 1f else 0.965f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessLow,
+        ),
+        label = "artworkBreathingScale",
+    )
+    val playButtonScale by animateFloatAsState(
+        targetValue = if (isPlaying) 1.055f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium,
+        ),
+        label = "playButtonScale",
+    )
 
     var position by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(1L) }
@@ -169,7 +189,11 @@ fun PlayerScreen(
                     url = metadata?.thumbnailUrl,
                     modifier = Modifier
                         .size(artworkSize)
-                        .align(Alignment.CenterHorizontally),
+                        .align(Alignment.CenterHorizontally)
+                        .graphicsLayer {
+                            scaleX = artworkScale
+                            scaleY = artworkScale
+                        },
                     cornerRadius = 28,
                 )
                 Spacer(Modifier.height(22.dp))
@@ -262,7 +286,12 @@ fun PlayerScreen(
                 )
                 Spacer(Modifier.width(24.dp))
                 Surface(
-                    modifier = Modifier.size(78.dp),
+                    modifier = Modifier
+                        .size(78.dp)
+                        .graphicsLayer {
+                            scaleX = playButtonScale
+                            scaleY = playButtonScale
+                        },
                     shape = CircleShape,
                     color = Color.Transparent,
                     onClick = { playerConnection?.togglePlayPause() },
