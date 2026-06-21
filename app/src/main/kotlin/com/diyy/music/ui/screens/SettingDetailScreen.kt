@@ -551,7 +551,13 @@ private fun PlayerAudioDetail(
         BooleanSetting("Autoplay", "Continue with related music when the queue ends.", AutoplayKey, true, icon = R.drawable.play),
         BooleanSetting("Persistent queue", "Restore the last queue after reopening DiyyMusic.", PersistentQueueKey, true, icon = R.drawable.queue_music),
         BooleanSetting("Remember shuffle and repeat", "Keep both playback modes between sessions.", RememberShuffleAndRepeatKey, true, icon = R.drawable.repeat),
-        BooleanSetting("Auto radio queue", "Load related tracks near the end of the queue.", AutoRadioQueueKey, true, icon = R.drawable.radio),
+        BooleanSetting(
+            "Smart Radio continuation",
+            "Keep playing personalized recommendations after a playlist or queue ends.",
+            AutoRadioQueueKey,
+            true,
+            icon = R.drawable.radio,
+        ),
         BooleanSetting("Prevent duplicate tracks", "Avoid inserting the same song repeatedly.", PreventDuplicateTracksInQueueKey, true, icon = R.drawable.content_copy),
         BooleanSetting("Skip failed songs", "Move on when playback cannot recover.", AutoSkipNextOnErrorKey, true, icon = R.drawable.skip_next),
         BooleanSetting("Stop when app is cleared", "Stop playback after removing DiyyMusic from recents.", StopMusicOnTaskClearKey, false, icon = R.drawable.close),
@@ -747,9 +753,6 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
     val connected = !accessToken.isNullOrBlank()
     val presenceReady = connectionStatus == DiscordRpcManager.Status.Connected
 
-    LaunchedEffect(presenceReady) {
-        if (!presenceReady && enabled) enabled = false
-    }
     val status = when (connectionStatus) {
         DiscordRpcManager.Status.Connected -> "Connected"
         DiscordRpcManager.Status.Linked -> "Account linked"
@@ -758,7 +761,7 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
     }
     val actionButtonsEnabled = button1Enabled || button2Enabled
     val discordErrorMessage = when (lastError) {
-        "discord_error_social_sdk_unavailable" -> "Discord account is linked, but this build has no active Rich Presence transport."
+        "discord_error_social_sdk_unavailable" -> "Discord is linked, but the Android presence transport is not connected yet."
         "discord_error_state_mismatch" -> "Discord returned an invalid authorization state. Close the browser and reconnect."
         "discord_error_invalid_scope" -> "Discord rejected one of the requested permissions. This build now requests only the standard identify scope by default."
         "discord_error_public_client_required" -> "Enable Public Client in Discord Developer Portal → OAuth2, then reconnect."
@@ -881,10 +884,10 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
                             },
                         ) {
                             Text(
-                                text = if (presenceReady) {
-                                    "Rich Presence is ready and will follow the current track."
-                                } else {
-                                    "Account linked. Rich Presence transport is not available in this Android build."
+                                text = when {
+                                    presenceReady -> "Rich Presence is connected and will follow the current track."
+                                    enabled -> "Rich Presence is enabled in DiyyMusic. The app will keep retrying the Discord transport when available."
+                                    else -> "Discord is linked. Enable Rich Presence below to save the preference and retry the connection."
                                 },
                                 modifier = Modifier.padding(12.dp),
                                 color = if (presenceReady) {
@@ -894,6 +897,19 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                             )
+                        }
+                    }
+
+                    if (connected && enabled && !presenceReady) {
+                        OutlinedButton(
+                            onClick = {
+                                DiscordRpcManager.clearLastError()
+                                DiscordRpcManager.getAccessToken()?.let(DiscordRpcManager::reconnectWithToken)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp),
+                        ) {
+                            Text("Retry Rich Presence")
                         }
                     }
 
@@ -916,13 +932,17 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
                     subtitle = when {
                         !connected -> "Link a Discord account first."
                         presenceReady -> "Share the current track on Discord."
-                        else -> "Unavailable until the Discord presence transport is included."
+                        enabled -> "Enabled locally. Waiting for the Discord transport to connect."
+                        else -> "Save the preference and retry the Discord connection."
                     },
-                    checked = enabled && presenceReady,
-                    enabled = connected && presenceReady,
-                    onCheckedChange = {
-                        enabled = it
+                    checked = enabled,
+                    enabled = connected,
+                    onCheckedChange = { value ->
+                        enabled = value
                         DiscordRpcManager.notifySettingsChanged()
+                        if (value && !presenceReady) {
+                            DiscordRpcManager.getAccessToken()?.let(DiscordRpcManager::reconnectWithToken)
+                        }
                     },
                 )
                 FigmaDivider()
@@ -930,7 +950,7 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
                     title = "Show action buttons",
                     subtitle = "Show Listen and DiyyMusic buttons on the activity.",
                     checked = actionButtonsEnabled,
-                    enabled = connected && presenceReady && enabled,
+                    enabled = connected && enabled,
                     onCheckedChange = {
                         button1Enabled = it
                         button2Enabled = it
@@ -979,7 +999,7 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
                             title = "Custom presence text",
                             subtitle = "Use templates instead of the default song and artist layout.",
                             checked = advancedMode,
-                            enabled = connected && presenceReady && enabled,
+                            enabled = connected && enabled,
                             onCheckedChange = {
                                 advancedMode = it
                                 DiscordRpcManager.notifySettingsChanged()

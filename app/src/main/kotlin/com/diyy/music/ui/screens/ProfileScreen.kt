@@ -18,12 +18,16 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,6 +38,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
@@ -73,6 +78,7 @@ fun ProfileScreen(
     val downloadedSongs by database.downloadedSongsByCreateDateAsc().collectAsStateWithLifecycle(initialValue = emptyList())
     val recentEvents by database.events().collectAsStateWithLifecycle(initialValue = emptyList())
     val isGuest = accountName.isBlank() || accountName == "Guest"
+    var showLogoutConfirmation by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { viewModel.loadHomeData() }
 
@@ -293,11 +299,41 @@ fun ProfileScreen(
                 FigmaDivider()
                 FigmaSettingsRow(
                     title = "Logout",
+                    subtitle = "Sign out from your music account",
                     icon = R.drawable.logout,
-                    destructive = true,
-                    onClick = onLogout,
+                    onClick = { showLogoutConfirmation = true },
                 )
             }
         }
+    }
+
+    if (showLogoutConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showLogoutConfirmation = false },
+            title = { Text("Logout from DiyyMusic?") },
+            text = {
+                Text(
+                    "Your local library and downloads stay on this device. " +
+                        "Only the connected music account will be signed out.",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLogoutConfirmation = false
+                        onLogout()
+                    },
+                ) {
+                    Text("Logout", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutConfirmation = false }) {
+                    Text("Cancel")
+                }
+            },
+            shape = RoundedCornerShape(28.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+        )
     }
 }

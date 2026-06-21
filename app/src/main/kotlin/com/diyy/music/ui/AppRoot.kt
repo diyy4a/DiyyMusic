@@ -38,6 +38,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.diyy.music.constants.AccountChannelHandleKey
+import com.diyy.music.constants.AccountEmailKey
+import com.diyy.music.constants.AccountNameKey
+import com.diyy.music.constants.DataSyncIdKey
 import com.diyy.music.constants.InnerTubeCookieKey
 import com.diyy.music.db.MusicDatabase
 import com.diyy.music.models.MediaMetadata
@@ -190,7 +194,12 @@ fun DiyyMusicRoot(
                             scope.launch {
                                 context.dataStore.edit { preferences ->
                                     preferences.remove(InnerTubeCookieKey)
+                                    preferences.remove(DataSyncIdKey)
+                                    preferences.remove(AccountNameKey)
+                                    preferences.remove(AccountEmailKey)
+                                    preferences.remove(AccountChannelHandleKey)
                                 }
+                                navigateToTab(navController, DiyyMainTab.LISTEN_NOW)
                             }
                         },
                     )

@@ -30,7 +30,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
@@ -220,7 +219,6 @@ fun DiyyInlineLyricsPreview(
     val lyricsOffsetMs = currentSong?.song?.lyricsOffset?.toLong() ?: 0L
     var playbackPositionMs by remember(metadata?.id) { mutableLongStateOf(0L) }
     var activeIndex by remember(lines) { mutableIntStateOf(if (hasSyncedLyrics) 0 else -1) }
-    val instrumentalWindow = currentInstrumentalWindow(lines, activeIndex, playbackPositionMs)
 
     LaunchedEffect(metadata?.id, activeLyrics?.id) {
         val current = metadata ?: return@LaunchedEffect
@@ -398,11 +396,6 @@ fun DiyyInlineLyricsPreview(
                             )
                         }
                     }
-                    instrumentalWindow != null -> InstrumentalProgressMarker(
-                        progress = instrumentalWindow.progress(playbackPositionMs),
-                        active = true,
-                        compact = true,
-                    )
                     else -> LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
@@ -688,13 +681,6 @@ fun DiyyLyricsSheet(
                                             }
                                         },
                                     )
-                                    instrumentalWindowAfter(lines, index)?.let { window ->
-                                        InstrumentalProgressMarker(
-                                            progress = window.progress(effectivePlaybackPositionMs),
-                                            active = effectivePlaybackPositionMs in window.startMs until window.endMs,
-                                            compact = false,
-                                        )
-                                    }
                                 }
                             }
                         }
@@ -1124,96 +1110,6 @@ private data class DiyyLyricLine(
     val text: String,
     val words: List<WordTimestamp>? = null,
 )
-
-private data class InstrumentalWindow(
-    val startMs: Long,
-    val endMs: Long,
-) {
-    fun progress(positionMs: Long): Float =
-        ((positionMs - startMs).toFloat() / (endMs - startMs).coerceAtLeast(1L).toFloat())
-            .coerceIn(0f, 1f)
-}
-
-private fun instrumentalWindowAfter(
-    lines: List<DiyyLyricLine>,
-    index: Int,
-): InstrumentalWindow? {
-    val current = lines.getOrNull(index) ?: return null
-    val currentStart = current.timeMs ?: return null
-    val nextStart = lines.drop(index + 1).firstNotNullOfOrNull { it.timeMs } ?: return null
-
-    val wordEnd = current.words
-        ?.lastOrNull()
-        ?.endTime
-        ?.times(1000.0)
-        ?.roundToLong()
-    val estimatedSpeechDuration = (current.text.length * 62L).coerceIn(1_300L, 4_100L)
-    val estimatedEnd = (wordEnd ?: (currentStart + estimatedSpeechDuration))
-        .coerceAtMost(nextStart)
-    val gapStart = estimatedEnd.coerceAtLeast(currentStart + 900L)
-
-    if (nextStart - gapStart < MIN_INSTRUMENTAL_GAP_MS) return null
-    return InstrumentalWindow(startMs = gapStart, endMs = nextStart)
-}
-
-private fun currentInstrumentalWindow(
-    lines: List<DiyyLyricLine>,
-    activeIndex: Int,
-    positionMs: Long,
-): InstrumentalWindow? {
-    if (activeIndex < 0) return null
-    val window = instrumentalWindowAfter(lines, activeIndex) ?: return null
-    return window.takeIf { positionMs in it.startMs until it.endMs }
-}
-
-@Composable
-private fun InstrumentalProgressMarker(
-    progress: Float,
-    active: Boolean,
-    compact: Boolean,
-) {
-    val alpha by animateFloatAsState(
-        targetValue = if (active) 1f else 0.24f,
-        animationSpec = tween(220),
-        label = "instrumentalAlpha",
-    )
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(
-                horizontal = if (compact) 34.dp else 54.dp,
-                vertical = if (compact) 4.dp else 12.dp,
-            ),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(if (compact) 5.dp else 8.dp),
-    ) {
-        LinearProgressIndicator(
-            progress = { progress.coerceIn(0f, 1f) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(if (compact) 3.dp else 4.dp)
-                .clip(RoundedCornerShape(999.dp)),
-            color = DiyyRed.copy(alpha = alpha),
-            trackColor = if (compact) {
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.48f)
-            } else {
-                Color.White.copy(alpha = 0.14f)
-            },
-        )
-        if (active) {
-            Text(
-                text = "Instrumental",
-                color = if (compact) DiyyRed else Color.White.copy(alpha = 0.66f),
-                style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = if (compact) 0.5.sp else 1.sp,
-            )
-        }
-    }
-}
-
-private const val MIN_INSTRUMENTAL_GAP_MS = 2_400L
-
 
 private val metadataTagRegex = Regex("""^\[[a-zA-Z]+:.*]$""")
 private val lyricAgentTagRegex = Regex("""\{(?:agent:[^}]+|bg)\}""")

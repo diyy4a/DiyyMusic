@@ -98,6 +98,7 @@ import com.diyy.music.constants.AudioQualityKey
 import com.diyy.music.constants.AudioTrackPlaybackParamsKey
 import com.diyy.music.constants.AutoDownloadOnLikeKey
 import com.diyy.music.constants.AutoLoadMoreKey
+import com.diyy.music.constants.AutoRadioQueueKey
 import com.diyy.music.constants.AutoSkipNextOnErrorKey
 import com.diyy.music.constants.StreamSourceAndroidCreatorKey
 import com.diyy.music.constants.StreamSourceAndroidVRKey
@@ -482,6 +483,9 @@ class MusicService :
     private var cachedShufflePlaylistFirst = false
     @Volatile
     private var cachedAutoLoadMore = true
+    @Volatile
+    private var cachedAutoRadioQueue = true
+    private var smartRadioJob: Job? = null
 
     // URL cache for stream URLs - class-level so it can be invalidated on errors
     private val songUrlCache = Collections.synchronizedMap(
@@ -1150,6 +1154,9 @@ class MusicService :
         scope.launch {
             dataStore.data.map { it[AutoLoadMoreKey] ?: true }.distinctUntilChanged().collect { cachedAutoLoadMore = it }
         }
+        scope.launch {
+            dataStore.data.map { it[AutoRadioQueueKey] ?: true }.distinctUntilChanged().collect { cachedAutoRadioQueue = it }
+        }
         // Keep YTPlayerUtils in sync with the stream source toggles (Settings → Stream sources).
         // Map to the derived set + distinctUntilChanged so an unrelated preference write doesn't
         // rebuild the set and rewrite the @Volatile field on every DataStore emission.
@@ -1693,8 +1700,10 @@ class MusicService :
         if (!persistShuffleAcrossQueues) {
             player.shuffleModeEnabled = false
         }
-        // Reset original queue size when starting a new queue
+        // Reset original queue size and pending Smart Radio work when starting a new queue.
         originalQueueSize = 0
+        smartRadioJob?.cancel()
+        smartRadioJob = null
         if (queue.preloadItem != null) {
             player.setMediaItem(queue.preloadItem!!.toMediaItem())
             player.prepare()
@@ -1846,6 +1855,83 @@ class MusicService :
                     // Silent fail
                 }
             }
+        }
+    }
+
+    /**
+     * Appends a personalized continuation when the explicit queue reaches its final item.
+     * YouTube Music uses the current signed-in session, current seed track, and account
+     * listening signals for the recommendation mix. Existing queue items are filtered out.
+     */
+    private fun enqueueSmartRadioIfNeeded() {
+        if (!cachedAutoplay || !cachedAutoRadioQueue) return
+        if (player.repeatMode != REPEAT_MODE_OFF) return
+        if (player.currentMediaItem == null) return
+        if (player.hasNextMediaItem()) return
+        if (smartRadioJob?.isActive == true) return
+
+        val seedMetadata = player.currentMetadata ?: return
+        val seedId = seedMetadata.id
+
+        smartRadioJob = scope.launch(SilentHandler) {
+            val existingIds = (0 until player.mediaItemCount)
+                .map { index -> player.getMediaItemAt(index).mediaId }
+                .toSet()
+            val radioQueue = YouTubeQueue(endpoint = WatchEndpoint(videoId = seedId))
+
+            val recommendedItems = withContext(Dispatchers.IO) {
+                val primary = runCatching {
+                    radioQueue
+                        .getInitialStatus()
+                        .filterExplicit(cachedHideExplicit)
+                        .filterVideoSongs(cachedHideVideoSongs)
+                        .items
+                }.getOrDefault(emptyList())
+
+                val fallback = if (primary.isEmpty()) {
+                    runCatching {
+                        val nextResult = YouTube.next(WatchEndpoint(videoId = seedId)).getOrNull()
+                        val relatedEndpoint = nextResult?.relatedEndpoint ?: return@runCatching emptyList()
+                        YouTube.related(relatedEndpoint).getOrNull()?.songs.orEmpty()
+                            .map { it.toMediaItem() }
+                            .filterExplicit(cachedHideExplicit)
+                            .filterVideoSongs(cachedHideVideoSongs)
+                    }.getOrDefault(emptyList())
+                } else {
+                    emptyList()
+                }
+
+                (primary + fallback)
+                    .asSequence()
+                    .filter { it.mediaId.isNotBlank() && it.mediaId != seedId }
+                    .filterNot { it.mediaId in existingIds }
+                    .distinctBy { it.mediaId }
+                    .take(SMART_RADIO_BATCH_SIZE)
+                    .toList()
+            }
+
+            if (recommendedItems.isEmpty()) {
+                Timber.tag(TAG).w("Smart Radio: no recommendations for seed=%s", seedId)
+                return@launch
+            }
+
+            // Ignore a stale result if the user replaced the queue while recommendations loaded.
+            val stillOnSeed = player.currentMediaItem?.mediaId == seedId
+            if (!stillOnSeed || player.hasNextMediaItem()) return@launch
+
+            player.addMediaItems(recommendedItems)
+            currentQueue = radioQueue
+            queueTitle = "DiyyMusic Smart Radio"
+            Timber.tag(TAG).i("Smart Radio: appended %d recommendations after %s", recommendedItems.size, seedId)
+
+            // If loading finished just after the final song ended, continue automatically.
+            if (player.playbackState == STATE_ENDED && player.hasNextMediaItem()) {
+                player.seekToNextMediaItem()
+                player.prepare()
+                if (castConnectionHandler?.isCasting?.value != true) player.play()
+            }
+        }.also { job ->
+            job.invokeOnCompletion { smartRadioJob = null }
         }
     }
 
@@ -2487,6 +2573,15 @@ class MusicService :
             }
         }
 
+        // When the user reaches the final explicit queue item, prefetch a personalized
+        // continuation so playback does not stop at the end of a playlist or album.
+        if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT &&
+            !player.hasNextMediaItem() &&
+            !currentQueue.hasNextPage()
+        ) {
+            enqueueSmartRadioIfNeeded()
+        }
+
         // Save state when media item changes
         if (cachedPersistentQueue) {
             saveQueueToDisk()
@@ -2521,13 +2616,16 @@ class MusicService :
                 return
             }
 
-            // Handle autoplay - check if there's a next item to play
+            // Handle autoplay. If the explicit queue has ended, Smart Radio appends
+            // recommendations based on the final track and the signed-in listening profile.
             if (cachedAutoplay && player.hasNextMediaItem()) {
                 player.seekToNextMediaItem()
                 player.prepare()
                 if (castConnectionHandler?.isCasting?.value != true) {
                     player.play()
                 }
+            } else if (cachedAutoplay && cachedAutoRadioQueue) {
+                enqueueSmartRadioIfNeeded()
             }
         }
 
@@ -4691,6 +4789,7 @@ class MusicService :
     }
 
     companion object {
+        private const val SMART_RADIO_BATCH_SIZE = 30
         const val ACTION_ALARM_TRIGGER = "com.diyy.music.action.ALARM_TRIGGER"
         const val EXTRA_ALARM_ID = "extra_alarm_id"
         const val EXTRA_ALARM_PLAYLIST_ID = "extra_alarm_playlist_id"

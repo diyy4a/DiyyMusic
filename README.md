@@ -4,20 +4,17 @@ DiyyMusic is an open-source Android music client with a modern pink interface an
 
 ## Current release
 
-**DiyyMusic 0.9.6** (`versionCode 27`)
+**DiyyMusic 0.9.7** (`versionCode 28`)
 
-## What changed in 0.9.6
+## What changed in 0.9.7
 
-- Rebuilt the Now Playing layout so the artwork uses the available height instead of leaving a dead empty block.
-- Grouped favorite, lyrics, and queue directly below the song information.
-- Reorganized progress and playback controls into one balanced bottom dock.
-- Removed karaoke-style word filling from inline and full lyrics.
-- Added a small timed progress indicator only for detected instrumental gaps.
-- Smoothed lyric tracking and scrolling while keeping tap-to-seek in full lyrics.
-- Reworked Search into separate Top Result, Songs, Artists, Albums, and Playlists sections.
-- Sanitized generic creator labels such as `Song`, `Video`, and `Music` so they are not displayed as artist names.
-- Loaded the signed-in account avatar in the Library header.
-- Removed the OAuth redirect instructions from the Discord screen and stopped presenting a saved toggle as a working mobile Rich Presence connection.
+- Removed the guessed instrumental markers from inline and full lyrics.
+- Rich Presence can be switched on again after account linking; the preference is no longer forced back off when the Android transport is unavailable.
+- Added a **Retry Rich Presence** action and clearer linked/transport status.
+- Added a logout confirmation dialog and returned the Logout row to the normal DiyyMusic accent styling.
+- Logout now clears the signed-in account identity and session before returning to Home, while local songs and downloads remain intact.
+- Added **Smart Radio continuation**: when a playlist, album, or manual queue reaches its final track, DiyyMusic fetches a personalized recommendation mix from the signed-in YouTube Music session and continues playing automatically.
+- Smart Radio filters tracks already present in the queue and appends up to 30 unique recommendations.
 
 ## Discord account linking and Rich Presence
 
@@ -39,10 +36,10 @@ Android activity publishing is intentionally disabled unless an approved Discord
 
 ## Build with Codemagic
 
-Push the project to the `main` branch and run the **DiyyMusic v0.9.6 APK** workflow. The generated artifact is:
+Push the project to the `main` branch and run the **DiyyMusic v0.9.7 APK** workflow. The generated artifact is:
 
 ```text
-DiyyMusic-v0.9.6-universal.apk
+DiyyMusic-v0.9.7-universal.apk
 ```
 
 ## Build locally
