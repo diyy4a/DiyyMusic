@@ -1925,7 +1925,7 @@ class MusicService :
             Timber.tag(TAG).i("Smart Radio: appended %d recommendations after %s", recommendedItems.size, seedId)
 
             // If loading finished just after the final song ended, continue automatically.
-            if (player.playbackState == STATE_ENDED && player.hasNextMediaItem()) {
+            if (player.playbackState == Player.STATE_ENDED && player.hasNextMediaItem()) {
                 player.seekToNextMediaItem()
                 player.prepare()
                 if (castConnectionHandler?.isCasting?.value != true) player.play()
