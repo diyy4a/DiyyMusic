@@ -189,30 +189,56 @@ data class HomePage(
 
                 return when {
                     renderer.isSong -> {
-                        val subtitleRuns = renderer.subtitle?.runs?.oddElements() ?: return null
+                        val subtitleGroups = renderer.subtitle?.runs?.splitBySeparator().orEmpty()
+                        val genericLabels = setOf(
+                            "song", "songs", "video", "music video", "single", "album",
+                            "ep", "playlist", "podcast", "episode", "official audio",
+                        )
+                        fun isUsefulArtistText(text: String): Boolean {
+                            val value = text.trim()
+                            if (value.isBlank()) return false
+                            if (value.lowercase() in genericLabels) return false
+                            if (value.matches(Regex("\\d{4}"))) return false
+                            if (value.parseTime() != null) return false
+                            return true
+                        }
+
+                        val linkedArtistGroup = subtitleGroups.firstOrNull { group ->
+                            group.any {
+                                it.navigationEndpoint?.browseEndpoint?.browseId?.startsWith("UC") == true
+                            }
+                        }
+                        val fallbackArtistGroup = subtitleGroups.firstOrNull { group ->
+                            group.any { run ->
+                                isUsefulArtistText(run.text) &&
+                                    run.navigationEndpoint?.browseEndpoint?.browseId?.startsWith("MPREb_") != true
+                            }
+                        }
+                        val artistRuns = (linkedArtistGroup ?: fallbackArtistGroup)
+                            .orEmpty()
+                            .filter { run ->
+                                isUsefulArtistText(run.text) &&
+                                    run.navigationEndpoint?.browseEndpoint?.browseId?.startsWith("MPREb_") != true
+                            }
+                            .distinctBy { it.text.trim().lowercase() }
+
+                        val albumRun = subtitleGroups.flatten().firstOrNull {
+                            it.navigationEndpoint?.browseEndpoint?.browseId?.startsWith("MPREb_") == true
+                        }
+
                         SongItem(
                             id = renderer.navigationEndpoint.watchEndpoint?.videoId ?: return null,
                             title = renderer.title.runs?.firstOrNull()?.text ?: return null,
-                            artists = subtitleRuns.filter { run ->
-                                run.navigationEndpoint?.browseEndpoint?.browseId?.startsWith("UC") == true ||
-                                (run.navigationEndpoint?.browseEndpoint != null && 
-                                 run.navigationEndpoint.browseEndpoint.browseId.startsWith("MPREb_") != true)
-                            }.map { run ->
+                            artists = artistRuns.map { run ->
                                 Artist(
-                                    name = run.text,
-                                    id = run.navigationEndpoint?.browseEndpoint?.browseId
+                                    name = run.text.trim(),
+                                    id = run.navigationEndpoint?.browseEndpoint?.browseId,
                                 )
-                            }.ifEmpty {
-                                subtitleRuns.firstOrNull()?.let { run -> 
-                                    listOf(Artist(name = run.text, id = null)) 
-                                } ?: emptyList()
                             },
-                            album = subtitleRuns.firstOrNull { 
-                                it.navigationEndpoint?.browseEndpoint?.browseId?.startsWith("MPREb_") == true 
-                            }?.let {
+                            album = albumRun?.let {
                                 Album(
                                     name = it.text,
-                                    id = it.navigationEndpoint?.browseEndpoint?.browseId ?: return@let null
+                                    id = it.navigationEndpoint?.browseEndpoint?.browseId ?: return@let null,
                                 )
                             },
                             duration = null,

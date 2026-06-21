@@ -4,19 +4,19 @@ DiyyMusic is an open-source Android music client with a modern pink interface an
 
 ## Current release
 
-**DiyyMusic 0.9.1** (`versionCode 22`)
+**DiyyMusic 0.9.2** (`versionCode 23`)
 
-## What changed in 0.9.1
+## What changed in 0.9.2
 
-- Reduced the in-app brand mark and added more launcher-icon safe area.
-- Hidden the mini player until a real track exists.
-- Rebuilt preference selection as a rounded theme-aware dialog instead of the cramped platform popup.
-- Anchored the Now Playing action bar near the bottom on normal-height devices and reduced oversized artwork on compact screens.
-- Reworked synced lyrics using MetroList's centered-scroll behavior, readable inactive lines, longer easing, tap-to-seek, and frame-driven word highlighting.
-- Added a working 8-band equalizer with presets, preamp, and manual band controls backed by the existing audio processor.
-- Expanded dark and pure-black palettes so cards, controls, outlines, dialogs, and player surfaces change with the theme.
-- Changed Discord OAuth to one fixed loopback redirect URI so it can be registered once in the Discord Developer Portal.
-- Reduced unnecessary visual work while keeping playback progress and karaoke timing isolated from the rest of the screen.
+- Removed the oversized dead space in Now Playing so the action row sits directly below playback controls.
+- Rebuilt lyrics as a full-screen Spotify-style view instead of a draggable/swipe bottom sheet.
+- Reduced lyric scroll latency, added a small render-ahead correction, and honored LRC offset metadata.
+- Added working Android speech recognition to the microphone button in Search.
+- Added dark-specific category palettes so Search cards no longer remain pastel-light in dark mode.
+- Fixed Home “Top songs” metadata so generic labels such as `Song` are not shown as the artist.
+- Fixed Discord `invalid_scope` by requesting the standard `identify` scope in normal builds.
+- Separated Discord account linking from mobile Rich Presence availability. Social SDK scopes are requested only when explicitly enabled for an approved Discord application.
+- Bumped the application to `versionCode 23` / `versionName 0.9.2`.
 
 ## Discord branding
 
@@ -26,7 +26,7 @@ The Discord application ID bundled for DiyyMusic is:
 1518124516893528125
 ```
 
-Register this exact redirect under **Discord Developer Portal → OAuth2 → Redirects**:
+Enable **Public Client** in **Discord Developer Portal → OAuth2**, then register this exact redirect under **Redirects**:
 
 ```text
 http://127.0.0.1:6463/callback
@@ -34,12 +34,20 @@ http://127.0.0.1:6463/callback
 
 The value can be overridden with `DISCORD_REDIRECT_URI` in `local.properties` or the build environment, but the value used by the APK and the value registered in Discord must remain identical.
 
+By default, Discord OAuth requests only `identify`, so account linking works without restricted partner scopes. Mobile Rich Presence requires approved Discord Social SDK access. Approved builds can set:
+
+```properties
+DISCORD_SOCIAL_SDK_ENABLED=true
+```
+
+Do not enable it on an unapproved Discord application, because Discord will reject the restricted scope.
+
 ## Build with Codemagic
 
-Push the project to the `main` branch and run the **DiyyMusic v0.9.1 APK** workflow. The generated artifact is:
+Push the project to the `main` branch and run the **DiyyMusic v0.9.2 APK** workflow. The generated artifact is:
 
 ```text
-DiyyMusic-v0.9.1-universal.apk
+DiyyMusic-v0.9.2-universal.apk
 ```
 
 ## Build locally

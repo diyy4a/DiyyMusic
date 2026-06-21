@@ -295,11 +295,10 @@ fun PlayerScreen(
                 )
             }
 
-            if (needsScroll) {
-                Spacer(Modifier.height(14.dp))
-            } else {
-                Spacer(Modifier.weight(1f))
-            }
+            // Keep secondary actions attached to the transport controls. The previous
+            // weighted spacer pushed this bar to the bottom of tall screens and created a
+            // large dead area that looked like missing UI.
+            Spacer(Modifier.height(if (compact) 14.dp else 20.dp))
             LiquidGlassBox(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -333,7 +332,7 @@ fun PlayerScreen(
                 }
             }
 
-            Spacer(Modifier.height(if (needsScroll) 18.dp else 6.dp))
+            Spacer(Modifier.height(18.dp))
         }
     }
 

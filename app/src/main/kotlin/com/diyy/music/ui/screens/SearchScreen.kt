@@ -1,5 +1,12 @@
 package com.diyy.music.ui.screens
 
+import android.app.Activity
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.speech.RecognizerIntent
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -38,6 +45,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -61,12 +70,14 @@ import com.diyy.music.ui.component.FigmaSectionHeader
 import com.diyy.music.ui.component.LiquidGlassBox
 import com.diyy.music.ui.theme.DiyyRed
 import com.diyy.music.viewmodels.OnlineSearchSuggestionViewModel
+import java.util.Locale
 
 private data class SearchCategory(
     val title: String,
     val subtitle: String,
     val icon: Int,
-    val colors: List<Color>,
+    val lightColors: List<Color>,
+    val darkColors: List<Color>,
 )
 
 private val trendingSearches = listOf(
@@ -78,11 +89,31 @@ private val trendingSearches = listOf(
 )
 
 private val searchCategories = listOf(
-    SearchCategory("Pop", "Popular hits", R.drawable.favorite, listOf(Color(0xFFFFB7D0), Color(0xFFFFE4ED))),
-    SearchCategory("Chill", "Slow & dreamy", R.drawable.cloud, listOf(Color(0xFFD5BCFF), Color(0xFFF0E8FF))),
-    SearchCategory("Indie", "Fresh finds", R.drawable.radio, listOf(Color(0xFFFFD2B6), Color(0xFFFFEEE1))),
-    SearchCategory("Anime", "J-pop & OST", R.drawable.artist, listOf(Color(0xFFBFD1FF), Color(0xFFE8EEFF))),
-    SearchCategory("Focus", "Stay in flow", R.drawable.bedtime, listOf(Color(0xFFBDEADF), Color(0xFFE4F8F3))),
+    SearchCategory(
+        "Pop", "Popular hits", R.drawable.favorite,
+        lightColors = listOf(Color(0xFFFFB7D0), Color(0xFFFFE4ED)),
+        darkColors = listOf(Color(0xFF5C1731), Color(0xFF29111C)),
+    ),
+    SearchCategory(
+        "Chill", "Slow & dreamy", R.drawable.cloud,
+        lightColors = listOf(Color(0xFFD5BCFF), Color(0xFFF0E8FF)),
+        darkColors = listOf(Color(0xFF3E2A64), Color(0xFF21182F)),
+    ),
+    SearchCategory(
+        "Indie", "Fresh finds", R.drawable.radio,
+        lightColors = listOf(Color(0xFFFFD2B6), Color(0xFFFFEEE1)),
+        darkColors = listOf(Color(0xFF5A3024), Color(0xFF2A1915)),
+    ),
+    SearchCategory(
+        "Anime", "J-pop & OST", R.drawable.artist,
+        lightColors = listOf(Color(0xFFBFD1FF), Color(0xFFE8EEFF)),
+        darkColors = listOf(Color(0xFF263E68), Color(0xFF151E31)),
+    ),
+    SearchCategory(
+        "Focus", "Stay in flow", R.drawable.bedtime,
+        lightColors = listOf(Color(0xFFBDEADF), Color(0xFFE4F8F3)),
+        darkColors = listOf(Color(0xFF205045), Color(0xFF132A25)),
+    ),
 )
 
 @Composable
@@ -98,6 +129,35 @@ fun SearchScreen(
     var searchResults by remember { mutableStateOf<List<YTItem>>(emptyList()) }
     var isSearching by remember { mutableStateOf(false) }
     val state by viewModel.viewState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val voiceSearchLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val spokenQuery = result.data
+                ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                ?.firstOrNull()
+                ?.trim()
+            if (!spokenQuery.isNullOrBlank()) {
+                query = spokenQuery
+                submittedQuery = spokenQuery
+            }
+        }
+    }
+    val launchVoiceSearch = {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Search music")
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+        }
+        try {
+            voiceSearchLauncher.launch(intent)
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(context, "Voice search is not available on this device.", Toast.LENGTH_SHORT).show()
+        }
+        Unit
+    }
 
     LaunchedEffect(initialQuery) {
         if (initialQuery.isNotBlank()) {
@@ -139,6 +199,7 @@ fun SearchScreen(
                 value = query,
                 onValueChange = { query = it },
                 onSearch = { submittedQuery = query.trim() },
+                onVoiceSearch = launchVoiceSearch,
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp),
             )
         }
@@ -360,6 +421,7 @@ private fun SearchField(
     value: String,
     onValueChange: (String) -> Unit,
     onSearch: () -> Unit,
+    onVoiceSearch: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LiquidGlassBox(
@@ -408,11 +470,11 @@ private fun SearchField(
                 modifier = Modifier.size(34.dp),
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer,
-                onClick = onSearch,
+                onClick = onVoiceSearch,
             ) {
                 Icon(
                     painter = painterResource(R.drawable.mic),
-                    contentDescription = "Search",
+                    contentDescription = "Voice search",
                     tint = DiyyRed,
                     modifier = Modifier.padding(8.dp),
                 )
@@ -446,12 +508,17 @@ private fun CategoryCard(
     category: SearchCategory,
     onClick: () -> Unit,
 ) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.45f
+    val colors = if (isDark) category.darkColors else category.lightColors
+    val titleColor = if (isDark) Color.White else Color(0xFF24171D)
+    val subtitleColor = titleColor.copy(alpha = if (isDark) 0.66f else 0.58f)
+
     Box(
         modifier = Modifier
             .width(126.dp)
             .height(150.dp)
             .clip(RoundedCornerShape(28.dp))
-            .background(Brush.verticalGradient(category.colors))
+            .background(Brush.verticalGradient(colors))
             .clickable(onClick = onClick)
             .padding(15.dp),
     ) {
@@ -459,7 +526,10 @@ private fun CategoryCard(
             modifier = Modifier
                 .size(54.dp)
                 .clip(RoundedCornerShape(19.dp))
-                .background(Color.White.copy(alpha = 0.58f))
+                .background(
+                    if (isDark) Color.White.copy(alpha = 0.12f)
+                    else Color.White.copy(alpha = 0.58f),
+                )
                 .align(Alignment.TopStart),
             contentAlignment = Alignment.Center,
         ) {
@@ -475,11 +545,12 @@ private fun CategoryCard(
                 text = category.title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
+                color = titleColor,
             )
             Text(
                 text = category.subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = subtitleColor,
             )
         }
     }

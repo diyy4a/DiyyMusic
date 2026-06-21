@@ -10,6 +10,7 @@ import com.diyy.music.BuildConfig
 import com.diyy.music.discord.DiscordDefaults.DISCORD_OAUTH_AUTHORIZE
 import com.diyy.music.discord.DiscordDefaults.DISCORD_OAUTH_TOKEN
 import com.diyy.music.discord.DiscordDefaults.DISCORD_SCOPES
+import com.diyy.music.discord.DiscordDefaults.DISCORD_SOCIAL_SCOPES
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
@@ -43,6 +44,7 @@ sealed class DiscordAuthException(message: String, cause: Throwable? = null) : E
     class UserCancelled(message: String = "User cancelled authorization") : DiscordAuthException(message)
     class NetworkFailure(cause: Throwable) : DiscordAuthException("Network failure: ${cause.message}", cause)
     class InvalidGrant(message: String = "Invalid or expired grant") : DiscordAuthException(message)
+    class OAuthRejected(val errorCode: String) : DiscordAuthException("Discord rejected OAuth: $errorCode")
     class StateMismatch : DiscordAuthException("OAuth state mismatch")
     class NoBrowser(message: String = "No browser available") : DiscordAuthException(message)
 }
@@ -56,6 +58,13 @@ class DiscordAuth(
 
     private val redirectUri: String
         get() = BuildConfig.DISCORD_REDIRECT_URI
+
+    private val requestedScopes: String
+        get() = if (BuildConfig.DISCORD_SOCIAL_SDK_ENABLED) {
+            DISCORD_SOCIAL_SCOPES
+        } else {
+            DISCORD_SCOPES
+        }
 
     private fun redirectConfig(): Triple<Int, String, String> {
         val parsed = Uri.parse(redirectUri)
@@ -171,7 +180,7 @@ class DiscordAuth(
             val accessToken = json.getString("access_token")
             val refreshToken = json.optString("refresh_token", "")
             val expiresIn = json.optLong("expires_in", 0L)
-            val scope = json.optString("scope", DISCORD_SCOPES)
+            val scope = json.optString("scope", requestedScopes)
             Timber.tag(TAG).i(
                 "token exchange: success (accessToken length=%d, refreshToken present=%s, expiresIn=%d)",
                 accessToken.length,
@@ -192,6 +201,10 @@ class DiscordAuth(
             Timber.tag(TAG).w("token exchange: invalid_grant on %s", grantType)
             throw DiscordAuthException.InvalidGrant()
         }
+        if (errorCode in setOf("invalid_scope", "invalid_client", "unauthorized_client", "access_denied")) {
+            Timber.tag(TAG).w("token exchange: OAuth rejected with %s", errorCode)
+            throw DiscordAuthException.OAuthRejected(errorCode)
+        }
         Timber.tag(TAG).w(
             "token exchange: HTTP %d (grantType=%s, error=%s, body=%s)",
             status.value,
@@ -209,7 +222,7 @@ class DiscordAuth(
         challenge: String,
     ): String {
         val encodedRedirect = URLEncoder.encode(redirectUri, StandardCharsets.UTF_8.name())
-        val encodedScope = URLEncoder.encode(DISCORD_SCOPES, StandardCharsets.UTF_8.name())
+        val encodedScope = URLEncoder.encode(requestedScopes, StandardCharsets.UTF_8.name())
         return buildString {
             append(DISCORD_OAUTH_AUTHORIZE)
             append("?client_id=").append(clientId)

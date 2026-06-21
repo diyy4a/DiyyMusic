@@ -804,7 +804,7 @@
     <string name="column_label">Column %d</string>
 
     <string name="discord_connect_description">Sign in with Discord to share what you\'re listening to</string>
-    <string name="discord_information_warning">DiyyMusic uses Discord\'s public OAuth2 and Gateway APIs to share what you\'re listening to. Authorization happens through a local browser session that closes itself after capturing the code — nothing is sent to third-party servers. Your token is stored on this device in encrypted preferences and is never shared. DiyyMusic connects directly to wss://gateway.discord.gg to publish your activity, and only requests the minimum scope required (sdk.social_layer_presence).</string>
+    <string name="discord_information_warning">DiyyMusic uses Discord OAuth2 to link your account. Authorization happens through a local browser callback, and the token is stored on this device. Normal builds request only the identify scope. Rich Presence is enabled only in builds configured for approved Discord Social SDK access.</string>
     <string name="discord_status_connecting">Connecting to Discord…</string>
     <string name="discord_status_reconnecting">Reconnecting to Discord…</string>
     <string name="discord_status_connected">Connected</string>
@@ -816,6 +816,10 @@
     <string name="discord_error_no_browser">No browser was found to complete Discord authorization.</string>
     <string name="discord_error_token_refresh_failed">Discord session expired. Please reconnect.</string>
     <string name="discord_error_invalid_scope">Discord rejected the connection. Please reconnect and grant the required permission.</string>
+    <string name="discord_error_social_sdk_unavailable">Discord account linked, but Rich Presence requires approved Discord Social SDK access.</string>
+    <string name="discord_error_state_mismatch">Discord returned an invalid authorization state. Please reconnect.</string>
+    <string name="discord_error_public_client_required">Enable Public Client in the Discord Developer Portal OAuth2 settings.</string>
+    <string name="discord_error_oauth_rejected">Discord rejected the authorization request.</string>
     <string name="discord_error_banner_title">Discord error</string>
     <string name="discord_rpc_preview">Rich Presence preview</string>
     <string name="discord_integration">Discord Integration</string>

@@ -41,9 +41,13 @@ class LoopbackAuthServer(
 
                     if (error != null && state == expectedState) {
                         Timber.tag(TAG).w("loopback: callback received with error=%s", error)
-                        deferred.completeExceptionally(CancellationException("Authorization denied: $error"))
+                        deferred.completeExceptionally(DiscordAuthException.OAuthRejected(error))
                         call.respondText(
-                            "<html><body><h1>Authorization Denied</h1><p>Discord returned: $error</p></body></html>",
+                            callbackHtml(
+                                title = "Authorization denied",
+                                message = "Discord returned: $error",
+                                success = false,
+                            ),
                             ContentType.Text.Html,
                         )
                         return@get
@@ -53,7 +57,11 @@ class LoopbackAuthServer(
                         Timber.tag(TAG).w("loopback: callback received with missing code")
                         deferred.completeExceptionally(DiscordAuthException.InvalidGrant("Missing authorization code"))
                         call.respondText(
-                            "<html><body><h1>Authorization Failed</h1><p>Missing authorization code.</p></body></html>",
+                            callbackHtml(
+                                title = "Authorization failed",
+                                message = "Discord did not return an authorization code.",
+                                success = false,
+                            ),
                             ContentType.Text.Html,
                         )
                         return@get
@@ -67,7 +75,11 @@ class LoopbackAuthServer(
                         )
                         deferred.completeExceptionally(DiscordAuthException.StateMismatch())
                         call.respondText(
-                            "<html><body><h1>Authorization Failed</h1><p>State validation failed.</p></body></html>",
+                            callbackHtml(
+                                title = "Authorization failed",
+                                message = "The authorization state could not be verified.",
+                                success = false,
+                            ),
                             ContentType.Text.Html,
                         )
                         return@get
@@ -76,7 +88,11 @@ class LoopbackAuthServer(
                     Timber.tag(TAG).i("loopback: callback received with valid code (length=%d)", code.length)
                     deferred.complete(AuthCodeResult(code = code, state = state))
                     call.respondText(
-                        "<html><body><h1>Authorization Complete</h1><p>You can close this tab and return to DiyyMusic.</p></body></html>",
+                        callbackHtml(
+                            title = "Discord connected",
+                            message = "You can close this tab and return to DiyyMusic.",
+                            success = true,
+                        ),
                         ContentType.Text.Html,
                     )
                 }
@@ -84,6 +100,46 @@ class LoopbackAuthServer(
         }.start(wait = false)
         Timber.tag(TAG).i("loopback: started on port %d", port)
         return port
+    }
+
+
+    private fun callbackHtml(title: String, message: String, success: Boolean): String {
+        val accent = if (success) "#ff2d75" else "#ff557f"
+        val symbol = if (success) "&#10003;" else "&#10005;"
+        return """
+            <!doctype html>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8" />
+              <meta name="viewport" content="width=device-width,initial-scale=1" />
+              <meta name="color-scheme" content="dark" />
+              <title>DiyyMusic</title>
+              <style>
+                * { box-sizing: border-box; }
+                body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px;
+                       background: radial-gradient(circle at top, #28101b, #0d0c11 52%); color: #fff;
+                       font-family: system-ui, -apple-system, sans-serif; }
+                .card { width: min(430px, 100%); padding: 30px; border-radius: 28px;
+                        background: rgba(31,29,36,.92); border: 1px solid rgba(255,255,255,.12);
+                        box-shadow: 0 24px 70px rgba(0,0,0,.42); text-align: center; }
+                .icon { width: 72px; height: 72px; margin: 0 auto 18px; border-radius: 50%; display: grid;
+                        place-items: center; font-size: 38px; font-weight: 800; color: white;
+                        background: $accent; box-shadow: 0 0 34px ${accent}66; }
+                .brand { color: #ff2d75; font-weight: 800; letter-spacing: .2px; margin-bottom: 18px; }
+                h1 { margin: 0 0 10px; font-size: 26px; }
+                p { margin: 0; color: rgba(255,255,255,.68); line-height: 1.55; word-break: break-word; }
+              </style>
+            </head>
+            <body>
+              <main class="card">
+                <div class="brand">&#9835; DiyyMusic</div>
+                <div class="icon">$symbol</div>
+                <h1>$title</h1>
+                <p>$message</p>
+              </main>
+            </body>
+            </html>
+        """.trimIndent()
     }
 
     suspend fun awaitCode(timeoutMs: Long = 120_000L): AuthCodeResult {
