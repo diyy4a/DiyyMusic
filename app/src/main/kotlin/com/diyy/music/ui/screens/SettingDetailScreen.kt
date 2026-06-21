@@ -27,6 +27,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -47,6 +50,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -118,6 +122,7 @@ import com.diyy.music.ui.component.FigmaGroupedList
 import com.diyy.music.ui.component.FigmaSettingsRow
 import com.diyy.music.ui.component.LiquidGlassBox
 import com.diyy.music.ui.theme.DiyyRed
+import com.diyy.music.ui.theme.DiyySoftRed
 import com.diyy.music.utils.dataStore
 import com.diyy.music.utils.rememberPreference
 import com.diyy.music.viewmodels.AccountSettingsViewModel
@@ -332,16 +337,20 @@ private fun AppearanceDetail(onBack: () -> Unit, modifier: Modifier) {
         item { DiyyScreenHeader("Appearance", onBack = onBack) }
         item { SettingsLabel("Theme") }
         item {
-            ChoiceRow(
-                choices = listOf(
-                    DarkMode.AUTO.name to "System",
-                    DarkMode.OFF.name to "Light",
-                    DarkMode.ON.name to "Dark",
-                ),
-                selected = darkMode,
-                onSelected = { darkMode = it },
-                modifier = Modifier.padding(horizontal = 18.dp),
-            )
+            FigmaGroupedList(modifier = Modifier.padding(horizontal = 18.dp)) {
+                DropdownPreferenceRow(
+                    title = "Theme mode",
+                    subtitle = "Choose how DiyyMusic follows your display theme.",
+                    icon = R.drawable.palette,
+                    selected = darkMode,
+                    options = listOf(
+                        DarkMode.AUTO.name to "System",
+                        DarkMode.OFF.name to "Light",
+                        DarkMode.ON.name to "Dark",
+                    ),
+                    onSelected = { darkMode = it },
+                )
+            }
         }
         item { SettingsLabel("Interface") }
         item { BooleanSettingsGroup(settings, Modifier.padding(horizontal = 18.dp)) }
@@ -377,16 +386,20 @@ private fun PlayerAudioDetail(onBack: () -> Unit, modifier: Modifier) {
         item { DiyyScreenHeader("Player and Audio", onBack = onBack) }
         item { SettingsLabel("Streaming quality") }
         item {
-            ChoiceRow(
-                choices = listOf(
-                    AudioQuality.AUTO.name to "Auto",
-                    AudioQuality.LOW.name to "Data saver",
-                    AudioQuality.HIGH.name to "High",
-                ),
-                selected = audioQuality,
-                onSelected = { audioQuality = it },
-                modifier = Modifier.padding(horizontal = 18.dp),
-            )
+            FigmaGroupedList(modifier = Modifier.padding(horizontal = 18.dp)) {
+                DropdownPreferenceRow(
+                    title = "Streaming quality",
+                    subtitle = "Choose the balance between data usage and sound quality.",
+                    icon = R.drawable.equalizer,
+                    selected = audioQuality,
+                    options = listOf(
+                        AudioQuality.AUTO.name to "Auto",
+                        AudioQuality.LOW.name to "Data saver",
+                        AudioQuality.HIGH.name to "High",
+                    ),
+                    onSelected = { audioQuality = it },
+                )
+            }
         }
         item { SettingsLabel("Transitions") }
         item {
@@ -730,6 +743,102 @@ private fun findActivity(context: Context): Activity? {
         current = current.baseContext
     }
     return null
+}
+
+@Composable
+private fun DropdownPreferenceRow(
+    title: String,
+    subtitle: String,
+    icon: Int,
+    selected: String,
+    options: List<Pair<String, String>>,
+    onSelected: (String) -> Unit,
+) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val selectedLabel = options.firstOrNull { it.first == selected }?.second
+        ?: options.firstOrNull()?.second.orEmpty()
+
+    Box {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = true }
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(DiyySoftRed),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(icon),
+                    contentDescription = null,
+                    tint = DiyyRed,
+                    modifier = Modifier.size(21.dp),
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                text = selectedLabel,
+                style = MaterialTheme.typography.bodyMedium,
+                color = DiyyRed,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.width(6.dp))
+            Icon(
+                painter = painterResource(R.drawable.expand_more),
+                contentDescription = "Open $title options",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            options.forEach { (value, label) ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = label,
+                            color = if (selected == value) DiyyRed else MaterialTheme.colorScheme.onSurface,
+                            fontWeight = if (selected == value) FontWeight.SemiBold else FontWeight.Normal,
+                        )
+                    },
+                    trailingIcon = {
+                        if (selected == value) {
+                            Icon(
+                                painter = painterResource(R.drawable.check),
+                                contentDescription = null,
+                                tint = DiyyRed,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                    },
+                    onClick = {
+                        onSelected(value)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
 }
 
 @Composable

@@ -1,10 +1,13 @@
 package com.diyy.music.ui.screens
 
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
@@ -40,14 +43,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
@@ -69,7 +71,6 @@ import com.diyy.music.ui.component.DiyyLyricsSheet
 import com.diyy.music.ui.component.DiyyPlayerMenuSheet
 import com.diyy.music.ui.component.DiyyQueueSheet
 import com.diyy.music.ui.component.FigmaCircleButton
-import com.diyy.music.ui.component.LiquidGlassBox
 import com.diyy.music.ui.theme.DiyyRed
 import com.diyy.music.ui.theme.DiyySoftRed
 import com.diyy.music.utils.dataStore
@@ -112,22 +113,6 @@ fun PlayerScreen(
     val isDownloaded = download?.state == Download.STATE_COMPLETED
     val isDownloading = download?.state == Download.STATE_QUEUED || download?.state == Download.STATE_DOWNLOADING
     val downloadProgress = download?.percentDownloaded?.takeIf { it >= 0f }
-    val artworkScale by animateFloatAsState(
-        targetValue = if (isPlaying) 1f else 0.965f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessLow,
-        ),
-        label = "artworkBreathingScale",
-    )
-    val playButtonScale by animateFloatAsState(
-        targetValue = if (isPlaying) 1.055f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium,
-        ),
-        label = "playButtonScale",
-    )
 
     var position by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(1L) }
@@ -152,12 +137,13 @@ fun PlayerScreen(
                 if (!seeking) sliderValue = (position.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
                 volume = player.volume
             }
-            delay(300)
+            delay(100)
         }
     }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val artworkSize = (maxWidth - 40.dp).coerceAtMost(410.dp)
+        val artworkSize = (maxWidth - 48.dp).coerceAtMost(390.dp)
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -179,70 +165,51 @@ fun PlayerScreen(
                     icon = R.drawable.more_horiz,
                     contentDescription = "More",
                     onClick = { showMenu = true },
-                    tint = DiyyRed,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+
+            Spacer(Modifier.height(18.dp))
 
             if (!hideArtwork) {
-                Spacer(Modifier.height(20.dp))
-                Artwork(
-                    url = metadata?.thumbnailUrl,
-                    modifier = Modifier
-                        .size(artworkSize)
-                        .align(Alignment.CenterHorizontally)
-                        .graphicsLayer {
-                            scaleX = artworkScale
-                            scaleY = artworkScale
-                        },
-                    cornerRadius = 28,
-                )
-                Spacer(Modifier.height(22.dp))
-            } else {
-                Spacer(Modifier.height(12.dp))
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = metadata?.title ?: "Not Playing",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = metadata?.artists?.joinToString { it.name }.orEmpty().ifBlank { "DiyyMusic" },
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = DiyyRed,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                AnimatedContent(
+                    targetState = metadata?.id,
+                    transitionSpec = {
+                        (fadeIn(tween(180)) + scaleIn(tween(220), initialScale = 0.985f)) togetherWith
+                            (fadeOut(tween(120)) + scaleOut(tween(160), targetScale = 1.015f))
+                    },
+                    label = "playerArtwork",
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                ) {
+                    Artwork(
+                        url = metadata?.thumbnailUrl,
+                        modifier = Modifier.size(artworkSize),
+                        cornerRadius = 24,
                     )
                 }
-                FigmaCircleButton(
-                    icon = if (favorite) R.drawable.favorite else R.drawable.favorite_border,
-                    contentDescription = "Favorite",
-                    onClick = { playerConnection?.toggleLike() },
-                    tint = DiyyRed,
-                    modifier = Modifier.size(48.dp),
-                )
-                Spacer(Modifier.width(8.dp))
-                FigmaCircleButton(
-                    icon = when {
-                        isDownloaded -> R.drawable.offline
-                        isDownloading -> R.drawable.close
-                        else -> R.drawable.download
-                    },
-                    contentDescription = when {
-                        isDownloaded -> "Remove download"
-                        isDownloading -> "Cancel download"
-                        else -> "Download song"
-                    },
-                    onClick = toggleDownload,
-                    tint = DiyyRed,
-                    modifier = Modifier.size(48.dp),
-                )
+                Spacer(Modifier.height(22.dp))
             }
 
-            Spacer(Modifier.height(14.dp))
+            Text(
+                text = metadata?.title ?: "Not Playing",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                text = metadata?.artists?.joinToString { it.name }.orEmpty().ifBlank { "DiyyMusic" },
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(Modifier.height(18.dp))
             DiyyTrackSlider(
                 value = sliderValue,
                 onValueChange = {
@@ -265,104 +232,85 @@ fun PlayerScreen(
                 )
                 Spacer(Modifier.weight(1f))
                 Text(
-                    text = "-${formatTime((duration - duration * sliderValue).toLong())}",
+                    text = formatTime(duration),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(16.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
+                horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                PlayerGlassButton(
+                SimplePlayerButton(
+                    icon = if (shuffleEnabled) R.drawable.shuffle_on else R.drawable.shuffle,
+                    contentDescription = "Shuffle",
+                    active = shuffleEnabled,
+                    size = 46,
+                    onClick = { playerConnection?.toggleShuffle() },
+                )
+                SimplePlayerButton(
                     icon = R.drawable.skip_previous,
                     contentDescription = "Previous",
-                    size = 58,
-                    iconSize = 30,
+                    size = 54,
                     onClick = { playerConnection?.seekToPrevious() },
                 )
-                Spacer(Modifier.width(24.dp))
                 Surface(
-                    modifier = Modifier
-                        .size(78.dp)
-                        .graphicsLayer {
-                            scaleX = playButtonScale
-                            scaleY = playButtonScale
-                        },
+                    modifier = Modifier.size(72.dp),
                     shape = CircleShape,
-                    color = Color.Transparent,
+                    color = DiyyRed,
+                    tonalElevation = 0.dp,
+                    shadowElevation = 4.dp,
                     onClick = { playerConnection?.togglePlayPause() },
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape)
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(Color(0xFFFF6A9B), DiyyRed, Color(0xFFFF0D5E)),
-                                ),
-                            ),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            painter = painterResource(if (isPlaying) R.drawable.pause else R.drawable.play),
-                            contentDescription = if (isPlaying) "Pause" else "Play",
-                            tint = Color.White,
-                            modifier = Modifier.size(38.dp),
-                        )
+                    Box(contentAlignment = Alignment.Center) {
+                        AnimatedContent(
+                            targetState = isPlaying,
+                            transitionSpec = {
+                                (fadeIn(tween(120)) + scaleIn(tween(160), initialScale = 0.86f)) togetherWith
+                                    (fadeOut(tween(90)) + scaleOut(tween(120), targetScale = 0.86f))
+                            },
+                            label = "playPauseIcon",
+                        ) { playing ->
+                            Icon(
+                                painter = painterResource(if (playing) R.drawable.pause else R.drawable.play),
+                                contentDescription = if (playing) "Pause" else "Play",
+                                tint = Color.White,
+                                modifier = Modifier.size(34.dp),
+                            )
+                        }
                     }
                 }
-                Spacer(Modifier.width(24.dp))
-                PlayerGlassButton(
+                SimplePlayerButton(
                     icon = R.drawable.skip_next,
                     contentDescription = "Next",
-                    size = 58,
-                    iconSize = 30,
+                    size = 54,
                     onClick = { playerConnection?.seekToNext() },
                 )
-            }
-
-            Spacer(Modifier.height(22.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    painter = painterResource(R.drawable.volume_down),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(19.dp),
-                )
-                Spacer(Modifier.width(10.dp))
-                DiyyTrackSlider(
-                    value = volume,
-                    onValueChange = {
-                        volume = it
-                        runCatching { playerConnection?.player?.volume = it }
+                SimplePlayerButton(
+                    icon = when (repeatMode) {
+                        Player.REPEAT_MODE_ONE -> R.drawable.repeat_one_on
+                        Player.REPEAT_MODE_ALL -> R.drawable.repeat_on
+                        else -> R.drawable.repeat
                     },
-                    activeColor = DiyyRed.copy(alpha = 0.74f),
-                    inactiveColor = MaterialTheme.colorScheme.outlineVariant,
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(Modifier.width(10.dp))
-                Icon(
-                    painter = painterResource(R.drawable.volume_up),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(19.dp),
+                    contentDescription = "Repeat",
+                    active = repeatMode != Player.REPEAT_MODE_OFF,
+                    size = 46,
+                    onClick = { playerConnection?.cycleRepeatMode() },
                 )
             }
 
-            Spacer(Modifier.height(20.dp))
-            LiquidGlassBox(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(92.dp),
-                shape = RoundedCornerShape(30.dp),
-                elevation = 12.dp,
+            Spacer(Modifier.height(18.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
+                tonalElevation = 0.dp,
             ) {
                 Row(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -371,22 +319,6 @@ fun PlayerScreen(
                         label = "Favorite",
                         active = favorite,
                         onClick = { playerConnection?.toggleLike() },
-                    )
-                    PlayerAction(
-                        icon = if (shuffleEnabled) R.drawable.shuffle_on else R.drawable.shuffle,
-                        label = "Shuffle",
-                        active = shuffleEnabled,
-                        onClick = { playerConnection?.toggleShuffle() },
-                    )
-                    PlayerAction(
-                        icon = when (repeatMode) {
-                            Player.REPEAT_MODE_ONE -> R.drawable.repeat_one_on
-                            Player.REPEAT_MODE_ALL -> R.drawable.repeat_on
-                            else -> R.drawable.repeat
-                        },
-                        label = "Repeat",
-                        active = repeatMode != Player.REPEAT_MODE_OFF,
-                        onClick = { playerConnection?.cycleRepeatMode() },
                     )
                     PlayerAction(
                         icon = R.drawable.lyrics,
@@ -400,9 +332,57 @@ fun PlayerScreen(
                         active = showQueue,
                         onClick = { if (playerConnection != null) showQueue = true },
                     )
+                    PlayerAction(
+                        icon = when {
+                            isDownloaded -> R.drawable.offline
+                            isDownloading -> R.drawable.close
+                            else -> R.drawable.download
+                        },
+                        label = when {
+                            isDownloaded -> "Saved"
+                            isDownloading -> "Cancel"
+                            else -> "Download"
+                        },
+                        active = isDownloaded || isDownloading,
+                        onClick = toggleDownload,
+                    )
+                    PlayerAction(
+                        icon = R.drawable.more_horiz,
+                        label = "More",
+                        active = false,
+                        onClick = { showMenu = true },
+                    )
                 }
             }
+
             Spacer(Modifier.height(18.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    painter = painterResource(R.drawable.volume_down),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(10.dp))
+                DiyyTrackSlider(
+                    value = volume,
+                    onValueChange = {
+                        volume = it
+                        runCatching { playerConnection?.player?.volume = it }
+                    },
+                    activeColor = DiyyRed.copy(alpha = 0.78f),
+                    inactiveColor = MaterialTheme.colorScheme.outlineVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(Modifier.width(10.dp))
+                Icon(
+                    painter = painterResource(R.drawable.volume_up),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+            Spacer(Modifier.height(20.dp))
         }
     }
 
@@ -470,27 +450,28 @@ private fun toggleSongDownload(
 }
 
 @Composable
-private fun PlayerGlassButton(
+private fun SimplePlayerButton(
     icon: Int,
     contentDescription: String,
     size: Int,
-    iconSize: Int,
+    active: Boolean = false,
     onClick: () -> Unit,
 ) {
-    LiquidGlassBox(
+    Surface(
         modifier = Modifier.size(size.dp),
-        shape = RoundedCornerShape((size / 2).dp),
-        elevation = 10.dp,
+        shape = CircleShape,
+        color = if (active) DiyySoftRed else Color.Transparent,
+        tonalElevation = 0.dp,
         onClick = onClick,
     ) {
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = contentDescription,
-            tint = DiyyRed,
-            modifier = Modifier
-                .size(iconSize.dp)
-                .align(Alignment.Center),
-        )
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                painter = painterResource(icon),
+                contentDescription = contentDescription,
+                tint = if (active) DiyyRed else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.size((size * 0.48f).dp),
+            )
+        }
     }
 }
 
@@ -501,26 +482,29 @@ private fun PlayerAction(
     active: Boolean,
     onClick: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick)
-            .background(if (active) DiyySoftRed else Color.Transparent)
-            .padding(horizontal = 8.dp, vertical = 9.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = if (active) DiyySoftRed else Color.Transparent,
+        onClick = onClick,
     ) {
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = label,
-            tint = if (active) DiyyRed else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(23.dp),
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = if (active) DiyyRed else MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-        )
+        Column(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Icon(
+                painter = painterResource(icon),
+                contentDescription = label,
+                tint = if (active) DiyyRed else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(22.dp),
+            )
+            Spacer(Modifier.height(3.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = if (active) DiyyRed else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
+        }
     }
 }
 
@@ -569,7 +553,7 @@ private fun DiyyTrackSlider(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(6.dp)
+                .height(5.dp)
                 .clip(RoundedCornerShape(999.dp))
                 .background(inactiveColor),
         )
@@ -578,7 +562,7 @@ private fun DiyyTrackSlider(
             Box(
                 modifier = Modifier
                     .fillMaxWidth(fraction)
-                    .height(6.dp)
+                    .height(5.dp)
                     .clip(RoundedCornerShape(999.dp))
                     .background(activeColor),
             )
