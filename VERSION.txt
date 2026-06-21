@@ -1,3 +1,2 @@
-DiyyMusic 0.7.2
-versionCode=12
-channel=full-ui-rebuild-compile-fix
+DiyyMusic 0.8.0
+versionCode 13

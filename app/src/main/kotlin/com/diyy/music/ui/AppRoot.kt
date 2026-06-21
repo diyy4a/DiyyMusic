@@ -29,7 +29,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.diyy.music.constants.InnerTubeCookieKey
 import com.diyy.music.db.MusicDatabase
-import com.diyy.music.extensions.togglePlayPause
 import com.diyy.music.models.MediaMetadata
 import com.diyy.music.playback.PlayerConnection
 import com.diyy.music.ui.component.DiyyBottomNavigation
@@ -102,8 +101,8 @@ fun DiyyMusicRoot(
                         isPlaying = isPlaying,
                         progress = progress,
                         onOpen = { navController.navigate(DiyyRoutes.PLAYER) },
-                        onPlayPause = { runCatching { playerConnection?.player?.togglePlayPause() } },
-                        onNext = { runCatching { playerConnection?.player?.seekToNextMediaItem() } },
+                        onPlayPause = { playerConnection?.togglePlayPause() },
+                        onNext = { playerConnection?.seekToNext() },
                     )
                     DiyyBottomNavigation(
                         selected = currentTab,
@@ -146,8 +145,9 @@ fun DiyyMusicRoot(
             }
             composable(DiyyMainTab.PROFILE.route) {
                 ProfileScreen(
+                    database = database,
                     onBack = null,
-                    onOpenSettings = { navController.navigate(DiyyRoutes.SETTINGS) },
+                    onOpenFeature = { section -> navController.navigate("feature/${Uri.encode(section)}") },
                     onOpenCollection = { openCollection(navController, it) },
                     onLogout = {
                         scope.launch {
@@ -171,6 +171,15 @@ fun DiyyMusicRoot(
             }
             composable(DiyyRoutes.PLAYER) {
                 PlayerScreen(playerConnection = playerConnection, onBack = navController::navigateUp)
+            }
+            composable(
+                route = DiyyRoutes.FEATURE,
+                arguments = listOf(navArgument("section") { type = NavType.StringType }),
+            ) { entry ->
+                SettingDetailScreen(
+                    section = Uri.decode(entry.arguments?.getString("section").orEmpty()),
+                    onBack = navController::navigateUp,
+                )
             }
             composable(DiyyRoutes.SETTINGS) {
                 SettingsScreen(

@@ -49,12 +49,11 @@ import com.diyy.innertube.models.AlbumItem
 import com.diyy.innertube.models.ArtistItem
 import com.diyy.innertube.models.PlaylistItem
 import com.diyy.innertube.models.SongItem
-import com.diyy.innertube.models.WatchEndpoint
 import com.diyy.innertube.models.YTItem
 import com.diyy.music.R
-import com.diyy.music.models.toMediaMetadata
+import com.diyy.music.extensions.toMediaItem
 import com.diyy.music.playback.PlayerConnection
-import com.diyy.music.playback.queues.YouTubeQueue
+import com.diyy.music.playback.queues.ListQueue
 import com.diyy.music.ui.component.DiyyScreenHeader
 import com.diyy.music.ui.component.EmptyFigmaState
 import com.diyy.music.ui.component.FigmaMediaRow
@@ -121,6 +120,7 @@ fun SearchScreen(
     } else {
         state.items
     }
+    val playableResults = displayResults.filterIsInstance<SongItem>()
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -141,7 +141,10 @@ fun SearchScreen(
                 FigmaSectionHeader(
                     title = "Browse Categories",
                     actionText = "See All",
-                    onAction = {},
+                    onAction = {
+                        query = "Music"
+                        submittedQuery = "Music"
+                    },
                     modifier = Modifier.padding(top = 10.dp),
                 )
             }
@@ -259,11 +262,11 @@ fun SearchScreen(
                         imageUrl = item.thumbnail,
                         onClick = {
                             when (item) {
-                                is SongItem -> playerConnection?.playQueue(
-                                    YouTubeQueue(
-                                        endpoint = item.endpoint ?: WatchEndpoint(videoId = item.id),
-                                        preloadItem = item.toMediaMetadata(),
-                                    ),
+                                is SongItem -> playSearchSongs(
+                                    connection = playerConnection,
+                                    songs = playableResults,
+                                    startIndex = playableResults.indexOfFirst { it.id == item.id },
+                                    title = submittedQuery.ifBlank { "Search" },
                                 )
                                 is AlbumItem -> onOpenCollection("online_album:${item.id}")
                                 is ArtistItem -> onOpenCollection("online_artist:${item.id}")
@@ -292,6 +295,22 @@ fun SearchScreen(
             }
         }
     }
+}
+
+private fun playSearchSongs(
+    connection: PlayerConnection?,
+    songs: List<SongItem>,
+    startIndex: Int,
+    title: String,
+) {
+    if (connection == null || songs.isEmpty()) return
+    connection.playQueue(
+        ListQueue(
+            title = title,
+            items = songs.map { it.toMediaItem() },
+            startIndex = startIndex.coerceIn(songs.indices),
+        ),
+    )
 }
 
 @Composable

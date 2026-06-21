@@ -1,33 +1,44 @@
-# DiyyMusic v0.7.0 UI Rebuild Audit
+# DiyyMusic UI Rebuild Audit
 
-## Rebuilt UI
+## Scope
 
-- Home / Listen Now
-- Search and categories
-- Library dashboard
-- Profile and account/token entry point
-- Account/token editor
-- Mini player
-- Bottom navigation
-- Full Now Playing screen
-- Shared cards, rows, headers, settings lists, media tiles, buttons, and empty states
+DiyyMusic 0.6.2 removes the former application UI source tree and replaces it with a new Compose interface based on the supplied **Apple Music Player Redesign (Community)** Figma reference.
 
-## Liquid Glass implementation
+## New active UI source
 
-Liquid Glass is applied selectively to navigation, mini player, profile card, player controls, settings groups, search field, and floating controls. It uses translucent layered fills, edge highlights, thin borders, rounded geometry, and soft shadows. The entire screen is not blurred.
+The active UI is limited to the rebuilt files under:
 
-## Logo
+- `app/src/main/kotlin/com/diyy/music/ui/AppRoot.kt`
+- `app/src/main/kotlin/com/diyy/music/ui/Navigation.kt`
+- `app/src/main/kotlin/com/diyy/music/ui/component/FigmaComponents.kt`
+- `app/src/main/kotlin/com/diyy/music/ui/screens/`
+- `app/src/main/kotlin/com/diyy/music/ui/theme/Theme.kt`
 
-The official supplied pink music-note logo is used without changing its recognizable shape or color. Adaptive launcher foreground assets include a large safe margin to prevent cropping or zooming.
+The former MetroList-derived screen, menu, player, component, and navigation files are not included in the active UI tree.
 
-## Slider fix
+## Preserved backend
 
-Playback progress and volume use clean rounded custom tracks. The old thin vertical line thumb is removed. Tap and drag seeking/volume remain functional.
+All original non-UI Kotlin source files from DiyyMusic 0.5.0 remain present. Preserved systems include:
 
-## Preserved systems
+- playback service, player connection, queue, shuffle, repeat, and media session
+- online API and search data sources
+- Room database, entities, DAO, migrations, and repositories
+- account/session synchronization
+- downloads, cache, lyrics, recognition, Discord integration, widgets, and alarms
+- ViewModels and data flows used by the rebuilt interface
 
-Playback, queue, shuffle, repeat, media session, online search, Room database, downloads, cache, lyrics, recognition, Discord integration, widgets, alarms, and ViewModels remain preserved.
+Non-visual wrapped models and shared UI-independent types that previously lived under the old UI package were moved to backend-neutral packages rather than deleted.
 
-## Build status
+## Launcher icon
 
-Source structure, resources, XML, referenced drawables, and Kotlin delimiter balance were checked locally. A full Gradle Android compile could not run in the workspace because the required Gradle distribution and Maven dependencies were not available offline. GitHub Actions and Codemagic build definitions are included for `:app:assembleFossDebug`.
+The adaptive launcher icon uses a transparent foreground containing only the music note with safe margins. The dark rounded background remains separate, preventing Android launchers from zooming and clipping the note.
+
+## Validation performed
+
+- all Android resource XML files parsed successfully
+- all drawable references used by the rebuilt UI resolve to existing resources
+- no former UI package paths remain in the active source tree
+- all original non-UI Kotlin source files are still present
+- Kotlin parser check found no syntax-level errors in the rebuilt UI source
+
+A full Android build was not completed in the packaging container because the required Gradle distribution was not available offline. The included GitHub Actions workflow performs the real Android build in a networked runner.

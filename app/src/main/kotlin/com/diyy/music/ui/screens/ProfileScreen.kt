@@ -37,7 +37,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import com.diyy.music.BuildConfig
 import com.diyy.music.R
+import com.diyy.music.db.MusicDatabase
 import com.diyy.music.db.entities.Album
 import com.diyy.music.db.entities.Artist
 import com.diyy.music.db.entities.Playlist
@@ -56,8 +58,9 @@ import com.diyy.music.viewmodels.HomeViewModel
 
 @Composable
 fun ProfileScreen(
+    database: MusicDatabase,
     onBack: (() -> Unit)?,
-    onOpenSettings: () -> Unit,
+    onOpenFeature: (String) -> Unit,
     onOpenCollection: (String) -> Unit,
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
@@ -66,6 +69,10 @@ fun ProfileScreen(
     val accountName by viewModel.accountName.collectAsStateWithLifecycle()
     val accountImageUrl by viewModel.accountImageUrl.collectAsStateWithLifecycle()
     val keepListening by viewModel.keepListening.collectAsStateWithLifecycle()
+    val playlists by database.playlistsByCreateDateAsc().collectAsStateWithLifecycle(initialValue = emptyList())
+    val favoriteSongs by database.likedSongsByCreateDateAsc().collectAsStateWithLifecycle(initialValue = emptyList())
+    val downloadedSongs by database.downloadedSongsByCreateDateAsc().collectAsStateWithLifecycle(initialValue = emptyList())
+    val recentEvents by database.events().collectAsStateWithLifecycle(initialValue = emptyList())
     val isGuest = accountName.isBlank() || accountName == "Guest"
 
     LaunchedEffect(Unit) { viewModel.loadHomeData() }
@@ -168,26 +175,38 @@ fun ProfileScreen(
             ) {
                 item {
                     DiyyStatCard(
-                        value = keepListening.orEmpty().size.toString(),
+                        value = playlists.size.toString(),
+                        label = "Playlists",
+                        icon = R.drawable.queue_music,
+                        modifier = Modifier.width(116.dp),
+                        onClick = { onOpenCollection("playlists") },
+                    )
+                }
+                item {
+                    DiyyStatCard(
+                        value = favoriteSongs.size.toString(),
+                        label = "Favorites",
+                        icon = R.drawable.favorite,
+                        modifier = Modifier.width(116.dp),
+                        onClick = { onOpenCollection("favorites") },
+                    )
+                }
+                item {
+                    DiyyStatCard(
+                        value = downloadedSongs.size.toString(),
+                        label = "Downloads",
+                        icon = R.drawable.download,
+                        modifier = Modifier.width(116.dp),
+                        onClick = { onOpenCollection("downloads") },
+                    )
+                }
+                item {
+                    DiyyStatCard(
+                        value = recentEvents.distinctBy { it.song.id }.size.toString(),
                         label = "Recent",
                         icon = R.drawable.history,
                         modifier = Modifier.width(116.dp),
-                    )
-                }
-                item {
-                    DiyyStatCard(
-                        value = if (isGuest) "Local" else "Online",
-                        label = "Account",
-                        icon = R.drawable.account,
-                        modifier = Modifier.width(116.dp),
-                    )
-                }
-                item {
-                    DiyyStatCard(
-                        value = "0.7.1",
-                        label = "Version",
-                        icon = R.drawable.info,
-                        modifier = Modifier.width(116.dp),
+                        onClick = { onOpenCollection("recent") },
                     )
                 }
             }
@@ -242,35 +261,35 @@ fun ProfileScreen(
                     title = "Account & Token",
                     subtitle = "Manage login token and connected account",
                     icon = R.drawable.key,
-                    onClick = onOpenSettings,
+                    onClick = { onOpenFeature("account") },
                 )
                 FigmaDivider()
                 FigmaSettingsRow(
                     title = "Appearance",
                     subtitle = "Theme, interface, and player style",
                     icon = R.drawable.palette,
-                    onClick = onOpenSettings,
+                    onClick = { onOpenFeature("appearance") },
                 )
                 FigmaDivider()
                 FigmaSettingsRow(
                     title = "Playback & Audio",
                     subtitle = "Quality, cache, and audio controls",
                     icon = R.drawable.equalizer,
-                    onClick = onOpenSettings,
+                    onClick = { onOpenFeature("player") },
                 )
                 FigmaDivider()
                 FigmaSettingsRow(
                     title = "Connected Services",
                     subtitle = "Integrations and account services",
                     icon = R.drawable.integration,
-                    onClick = onOpenSettings,
+                    onClick = { onOpenFeature("discord") },
                 )
                 FigmaDivider()
                 FigmaSettingsRow(
                     title = "About DiyyMusic",
-                    subtitle = "Version 0.7.1 Build Fix",
+                    subtitle = "Version ${BuildConfig.VERSION_NAME}",
                     icon = R.drawable.info,
-                    onClick = onOpenSettings,
+                    onClick = { onOpenFeature("about") },
                 )
                 FigmaDivider()
                 FigmaSettingsRow(

@@ -2101,45 +2101,48 @@ class MusicService :
 
     fun toggleLike() {
         scope.launch {
-            val songToToggle = currentSong.first()
-            songToToggle?.let { librarySong ->
-                val songEntity = librarySong.song
+            val metadata = player.currentMetadata ?: return@launch
+            val librarySong = currentSong.first()?.takeIf { it.song.id == metadata.id }
+            val songEntity = librarySong?.song ?: metadata.toSongEntity()
 
-                // For podcast episodes, toggle save for later instead of like
-                if (songEntity.isEpisode) {
-                    toggleEpisodeSaveForLater(songEntity)
-                    return@let
-                }
-
-                val song = songEntity.toggleLike()
-
-                // Optimistically update the UI instantly
-                updateNotification(isLiked = song.liked)
-                updateWidgetUI(player.isPlaying, isLiked = song.liked)
-
-                database.query {
-                    update(song)
-                    syncUtils.likeSong(song)
-
-                    // Check if auto-download on like is enabled and the song is now liked
-                    if (dataStore.get(AutoDownloadOnLikeKey, false) && song.liked) {
-                        // Trigger download for the liked song
-                        val downloadRequest =
-                            androidx.media3.exoplayer.offline.DownloadRequest
-                                .Builder(song.id, song.id.toUri())
-                                .setCustomCacheKey(song.id)
-                                .setData(song.title.toByteArray())
-                                .build()
-                        androidx.media3.exoplayer.offline.DownloadService.sendAddDownload(
-                            this@MusicService,
-                            ExoDownloadService::class.java,
-                            downloadRequest,
-                            false,
-                        )
-                    }
-                }
-                currentMediaMetadata.value = player.currentMetadata
+            // For podcast episodes, toggle save for later instead of like.
+            if (songEntity.isEpisode) {
+                toggleEpisodeSaveForLater(songEntity)
+                return@launch
             }
+
+            val song = songEntity.toggleLike()
+
+            // Optimistically update external surfaces immediately.
+            updateNotification(isLiked = song.liked)
+            updateWidgetUI(player.isPlaying, isLiked = song.liked)
+
+            database.query {
+                // A freshly started online track may not have reached Room yet. Insert it
+                // before applying the like so the favorite button never becomes a no-op.
+                if (librarySong == null) insert(metadata)
+                update(song)
+                syncUtils.likeSong(song)
+
+                if (dataStore.get(AutoDownloadOnLikeKey, false) && song.liked) {
+                    val downloadRequest =
+                        androidx.media3.exoplayer.offline.DownloadRequest
+                            .Builder(song.id, song.id.toUri())
+                            .setCustomCacheKey(song.id)
+                            .setData(song.title.toByteArray())
+                            .build()
+                    androidx.media3.exoplayer.offline.DownloadService.sendAddDownload(
+                        this@MusicService,
+                        ExoDownloadService::class.java,
+                        downloadRequest,
+                        false,
+                    )
+                }
+            }
+            currentMediaMetadata.value = metadata.copy(
+                liked = song.liked,
+                likedDate = song.likedDate,
+            )
         }
     }
 

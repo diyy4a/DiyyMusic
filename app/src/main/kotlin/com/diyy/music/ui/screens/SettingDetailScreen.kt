@@ -28,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -380,6 +381,7 @@ private fun settingsFor(section: String): List<BooleanSetting> = when (section) 
 
 @Composable
 private fun AboutDetail(onBack: () -> Unit, modifier: Modifier) {
+    val uriHandler = LocalUriHandler.current
     LazyColumn(modifier = modifier, contentPadding = PaddingValues(bottom = 24.dp)) {
         item { DiyyScreenHeader("About", onBack = onBack) }
         item {
@@ -388,21 +390,21 @@ private fun AboutDetail(onBack: () -> Unit, modifier: Modifier) {
                     title = "DiyyMusic",
                     subtitle = "Version ${BuildConfig.VERSION_NAME}",
                     icon = R.drawable.music_note,
-                    onClick = {},
+                    onClick = { runCatching { uriHandler.openUri("https://github.com/diyy4a/DiyyMusic/releases") } },
                 )
                 FigmaDivider()
                 FigmaSettingsRow(
                     title = "Open source licenses",
                     subtitle = "GPLv3 and third-party libraries",
                     icon = R.drawable.info,
-                    onClick = {},
+                    onClick = { runCatching { uriHandler.openUri("https://github.com/diyy4a/DiyyMusic/blob/main/LICENSE") } },
                 )
                 FigmaDivider()
                 FigmaSettingsRow(
                     title = "Source code",
                     subtitle = "github.com/diyy4a/DiyyMusic",
                     icon = R.drawable.github,
-                    onClick = {},
+                    onClick = { runCatching { uriHandler.openUri("https://github.com/diyy4a/DiyyMusic") } },
                 )
             }
         }

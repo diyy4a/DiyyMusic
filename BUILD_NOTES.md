@@ -1,20 +1,28 @@
 # Build notes
 
-The source is configured for Java 21 and Android SDK 37.
+DiyyMusic 0.8.0 uses Java 21, Android SDK 37, and the FOSS debug variant.
+
+## Codemagic
+
+The workflow builds:
+
+```text
+DiyyMusic-v0.8.0-universal.apk
+```
+
+The persistent debug keystore is reused when valid and recreated only when missing or invalid.
 
 ## GitHub Actions
 
-Run the workflow **Build DiyyMusic v0.7.0 APK** from the Actions tab. The final APK is uploaded as the `DiyyMusic-v0.7.0-APK` artifact.
+Run **Build DiyyMusic v0.8.0 APK** and download the `DiyyMusic-v0.8.0-APK` artifact.
 
-## Local build
+## Local
 
 ```bash
 chmod +x gradlew
 ./gradlew :app:assembleFossDebug
 ```
 
-The compact build task keeps the APK at:
+The final APK is under `app/build/outputs/apk/foss/debug/`.
 
-```text
-app/build/outputs/apk/foss/debug/DiyyMusic-v0.7.0.apk
-```
+A full local Gradle build was not completed in the patching environment because the Gradle distribution and Android dependencies were unavailable offline. Codemagic/GitHub Actions remains the authoritative compile check.

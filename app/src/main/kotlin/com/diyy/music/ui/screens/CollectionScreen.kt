@@ -20,7 +20,6 @@ import com.diyy.innertube.models.AlbumItem
 import com.diyy.innertube.models.ArtistItem
 import com.diyy.innertube.models.PlaylistItem
 import com.diyy.innertube.models.SongItem
-import com.diyy.innertube.models.WatchEndpoint
 import com.diyy.innertube.models.YTItem
 import com.diyy.innertube.pages.AlbumPage
 import com.diyy.innertube.pages.ArtistPage
@@ -32,10 +31,8 @@ import com.diyy.music.db.entities.Artist
 import com.diyy.music.db.entities.Playlist
 import com.diyy.music.db.entities.Song
 import com.diyy.music.extensions.toMediaItem
-import com.diyy.music.models.toMediaMetadata
 import com.diyy.music.playback.PlayerConnection
 import com.diyy.music.playback.queues.ListQueue
-import com.diyy.music.playback.queues.YouTubeQueue
 import com.diyy.music.ui.component.DiyyScreenHeader
 import com.diyy.music.ui.component.EmptyFigmaState
 import com.diyy.music.ui.component.FigmaMediaRow
@@ -52,6 +49,7 @@ fun CollectionScreen(
     when {
         type == "songs" -> LocalSongsCollection(database, playerConnection, onBack, false, modifier)
         type == "favorites" -> LocalSongsCollection(database, playerConnection, onBack, true, modifier)
+        type == "downloads" -> DownloadedSongsCollection(database, playerConnection, onBack, modifier)
         type == "albums" -> LocalAlbumsCollection(database, onBack, onOpenCollection, modifier)
         type == "artists" -> LocalArtistsCollection(database, onBack, onOpenCollection, modifier)
         type == "playlists" -> LocalPlaylistsCollection(database, onBack, onOpenCollection, modifier)
@@ -79,6 +77,24 @@ private fun LocalSongsCollection(
         .collectAsStateWithLifecycle(initialValue = emptyList())
     SongListScreen(
         title = if (favorites) "Favorites" else "Songs",
+        songs = songs,
+        playerConnection = playerConnection,
+        onBack = onBack,
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun DownloadedSongsCollection(
+    database: MusicDatabase,
+    playerConnection: PlayerConnection?,
+    onBack: () -> Unit,
+    modifier: Modifier,
+) {
+    val songs by database.downloadedSongsByCreateDateAsc()
+        .collectAsStateWithLifecycle(initialValue = emptyList())
+    SongListScreen(
+        title = "Downloads",
         songs = songs,
         playerConnection = playerConnection,
         onBack = onBack,
@@ -312,6 +328,7 @@ private fun OnlineArtistDetail(
     var page by remember { mutableStateOf<ArtistPage?>(null) }
     LaunchedEffect(id) { page = YouTube.artist(id).getOrNull() }
     val items = page?.sections.orEmpty().flatMap { it.items }
+    val playableSongs = items.filterIsInstance<SongItem>()
     LazyColumn(modifier = modifier, contentPadding = PaddingValues(bottom = 24.dp)) {
         item { DiyyScreenHeader(page?.artist?.title ?: "Artist", onBack = onBack) }
         if (items.isEmpty()) {
@@ -324,8 +341,11 @@ private fun OnlineArtistDetail(
                     imageUrl = item.thumbnail,
                     onClick = {
                         when (item) {
-                            is SongItem -> playerConnection?.playQueue(
-                                YouTubeQueue(item.endpoint ?: WatchEndpoint(videoId = item.id), item.toMediaMetadata()),
+                            is SongItem -> playOnlineSongs(
+                                connection = playerConnection,
+                                title = page?.artist?.title ?: "Artist",
+                                songs = playableSongs,
+                                startIndex = playableSongs.indexOfFirst { it.id == item.id },
                             )
                             is AlbumItem -> onOpenCollection("online_album:${item.id}")
                             is PlaylistItem -> onOpenCollection("online_playlist:${item.id}")
@@ -358,14 +378,33 @@ private fun OnlineSongList(
                     subtitle = song.artists.joinToString { it.name },
                     imageUrl = song.thumbnail,
                     onClick = {
-                        playerConnection?.playQueue(
-                            YouTubeQueue(song.endpoint ?: WatchEndpoint(videoId = song.id), song.toMediaMetadata()),
+                        playOnlineSongs(
+                            connection = playerConnection,
+                            title = title,
+                            songs = songs,
+                            startIndex = songs.indexOfFirst { it.id == song.id },
                         )
                     },
                 )
             }
         }
     }
+}
+
+private fun playOnlineSongs(
+    connection: PlayerConnection?,
+    title: String,
+    songs: List<SongItem>,
+    startIndex: Int,
+) {
+    if (connection == null || songs.isEmpty()) return
+    connection.playQueue(
+        ListQueue(
+            title = title,
+            items = songs.map { it.toMediaItem() },
+            startIndex = startIndex.coerceIn(songs.indices),
+        ),
+    )
 }
 
 @Composable

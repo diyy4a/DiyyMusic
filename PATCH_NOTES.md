@@ -1,9 +1,17 @@
-# DiyyMusic v0.7.2 Patch
+# DiyyMusic v0.8.0 Functional Backend Patch
 
-This patch fixes the Codemagic Kotlin compilation error:
+Apply this patch over DiyyMusic v0.7.2.
 
-```text
-No parameter with name 'onOpenRadio' found.
-```
+## Main fixes
 
-The invalid argument was removed only from the `LibraryScreen` call. The valid Radio callback on `ListenNowScreen` remains intact. Extract the patch into the project root and overwrite existing files.
+- Rewires song playback to the existing MetroList/Media3 backend instead of placeholder UI callbacks.
+- Replaces fragile online song radio-only launches with immediate `ListQueue` playback.
+- Connects all Now Playing controls to the real player.
+- Adds working Queue, Lyrics, song overflow menu, Start Radio, and Retry Playback sheets/actions.
+- Makes Favorites persist, even when an online track has not been inserted into Room yet.
+- Routes Profile cards and feature rows to the correct destinations.
+- Adds a real Downloads collection.
+- Disables minification/resource shrinking for the installable debug APK.
+- Builds a universal ARM APK.
+
+Extract the ZIP into the project root and overwrite the existing files.

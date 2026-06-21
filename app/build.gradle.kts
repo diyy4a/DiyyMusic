@@ -22,7 +22,7 @@ if (localPropertiesFile.exists()) {
 val baseApplicationId = "com.diyy.music"
 val applicationIdOverride = System.getenv("DIYYMUSIC_APPLICATION_ID")?.takeIf { it.isNotBlank() }
 val appNameOverride = System.getenv("DIYYMUSIC_APP_NAME")?.takeIf { it.isNotBlank() }
-val targetAbi = System.getenv("DIYYMUSIC_ABI")?.takeIf { it.isNotBlank() } ?: "armeabi-v7a"
+val targetAbi = System.getenv("DIYYMUSIC_ABI")?.takeIf { it.isNotBlank() } ?: "universal"
 val debugKeystorePathOverride = System.getenv("DIYYMUSIC_DEBUG_KEYSTORE_PATH")?.takeIf { it.isNotBlank() }
 val debugKeystorePassword = System.getenv("DIYYMUSIC_DEBUG_KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() } ?: "android"
 val debugKeyAlias = System.getenv("DIYYMUSIC_DEBUG_KEY_ALIAS")?.takeIf { it.isNotBlank() } ?: "androiddebugkey"
@@ -102,8 +102,8 @@ android {
         applicationId = applicationIdOverride ?: baseApplicationId
         minSdk = 26
         targetSdk = 36
-        versionCode = 12
-        versionName = "0.7.2"
+        versionCode = 13
+        versionName = "0.8.0"
         resValue("string", "app_name", appNameOverride ?: "DiyyMusic")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -111,7 +111,11 @@ android {
         resourceConfigurations += listOf("en", "in")
 
         ndk {
-            abiFilters += targetAbi
+            if (targetAbi == "universal") {
+                abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+            } else {
+                abiFilters += targetAbi
+            }
         }
 
         // LastFM API keys from GitHub Secrets
@@ -176,15 +180,12 @@ android {
             if (applicationIdOverride == null) {
                 applicationIdSuffix = ".debug"
             }
-            // Bot build invokes assembleDebug. Keep it installable but optimize it like release.
-            isDebuggable = false
-            isMinifyEnabled = true
-            isShrinkResources = true
-            isCrunchPngs = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro",
-            )
+            // Keep the installable debug build unshrunk. R8 optimization broke playback
+            // resolution and reflective/network-backed providers in prior builds.
+            isDebuggable = true
+            isMinifyEnabled = false
+            isShrinkResources = false
+            isCrunchPngs = false
             if (appNameOverride == null) {
                 resValue("string", "app_name", "DiyyMusic")
             }

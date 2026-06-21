@@ -1,6 +1,7 @@
 package com.diyy.music.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
@@ -20,7 +21,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -48,14 +48,16 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
 import com.diyy.music.R
-import com.diyy.music.extensions.togglePlayPause
-import com.diyy.music.extensions.toggleRepeatMode
+import com.diyy.music.db.entities.Song
+import com.diyy.music.models.MediaMetadata
 import com.diyy.music.playback.PlayerConnection
 import com.diyy.music.ui.component.Artwork
 import com.diyy.music.ui.component.DiyyBrandMark
+import com.diyy.music.ui.component.DiyyLyricsSheet
+import com.diyy.music.ui.component.DiyyPlayerMenuSheet
+import com.diyy.music.ui.component.DiyyQueueSheet
 import com.diyy.music.ui.component.FigmaCircleButton
 import com.diyy.music.ui.component.LiquidGlassBox
-import com.diyy.music.ui.theme.DiyyPinkLight
 import com.diyy.music.ui.theme.DiyyRed
 import com.diyy.music.ui.theme.DiyySoftRed
 import kotlinx.coroutines.delay
@@ -68,7 +70,7 @@ fun PlayerScreen(
     modifier: Modifier = Modifier,
 ) {
     val metadataState = playerConnection?.mediaMetadata?.collectAsStateWithLifecycle()
-        ?: remember { mutableStateOf<com.diyy.music.models.MediaMetadata?>(null) }
+        ?: remember { mutableStateOf<MediaMetadata?>(null) }
     val metadata by metadataState
     val playingState = playerConnection?.isPlaying?.collectAsStateWithLifecycle()
         ?: remember { mutableStateOf(false) }
@@ -77,17 +79,23 @@ fun PlayerScreen(
         ?: remember { mutableStateOf(false) }
     val shuffleEnabled by shuffleState
     val repeatState = playerConnection?.repeatMode?.collectAsStateWithLifecycle()
-        ?: remember { mutableStateOf(0) }
+        ?: remember { mutableStateOf(Player.REPEAT_MODE_OFF) }
     val repeatMode by repeatState
+    val songState = playerConnection?.currentSong?.collectAsStateWithLifecycle()
+        ?: remember { mutableStateOf<Song?>(null) }
+    val currentSong by songState
+    val favorite = currentSong?.song?.liked ?: metadata?.liked ?: false
 
     var position by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(1L) }
     var sliderValue by remember { mutableFloatStateOf(0f) }
     var seeking by remember { mutableStateOf(false) }
     var volume by remember { mutableFloatStateOf(1f) }
-    var favorite by remember { mutableStateOf(false) }
+    var showQueue by remember { mutableStateOf(false) }
+    var showLyrics by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
 
-    LaunchedEffect(playerConnection, isPlaying, seeking) {
+    LaunchedEffect(playerConnection, isPlaying, seeking, metadata?.id) {
         while (true) {
             val player = runCatching { playerConnection?.player }.getOrNull()
             if (player != null) {
@@ -96,7 +104,7 @@ fun PlayerScreen(
                 if (!seeking) sliderValue = (position.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
                 volume = player.volume
             }
-            delay(350)
+            delay(300)
         }
     }
 
@@ -122,7 +130,7 @@ fun PlayerScreen(
                 FigmaCircleButton(
                     icon = R.drawable.more_horiz,
                     contentDescription = "More",
-                    onClick = {},
+                    onClick = { showMenu = true },
                     tint = DiyyRed,
                 )
             }
@@ -157,7 +165,7 @@ fun PlayerScreen(
                 FigmaCircleButton(
                     icon = if (favorite) R.drawable.favorite else R.drawable.favorite_border,
                     contentDescription = "Favorite",
-                    onClick = { favorite = !favorite },
+                    onClick = { playerConnection?.toggleLike() },
                     tint = DiyyRed,
                     modifier = Modifier.size(48.dp),
                 )
@@ -171,7 +179,7 @@ fun PlayerScreen(
                     sliderValue = it
                 },
                 onValueChangeFinished = {
-                    runCatching { playerConnection?.player?.seekTo((duration * sliderValue).toLong()) }
+                    playerConnection?.seekTo((duration * sliderValue).toLong())
                     seeking = false
                 },
                 activeColor = DiyyRed,
@@ -203,22 +211,14 @@ fun PlayerScreen(
                     contentDescription = "Previous",
                     size = 58,
                     iconSize = 30,
-                    onClick = {
-                        runCatching {
-                            if ((playerConnection?.player?.currentPosition ?: 0L) > 3_000L) {
-                                playerConnection?.player?.seekTo(0L)
-                            } else {
-                                playerConnection?.player?.seekToPreviousMediaItem()
-                            }
-                        }
-                    },
+                    onClick = { playerConnection?.seekToPrevious() },
                 )
                 Spacer(Modifier.width(24.dp))
                 Surface(
                     modifier = Modifier.size(78.dp),
                     shape = CircleShape,
                     color = Color.Transparent,
-                    onClick = { runCatching { playerConnection?.player?.togglePlayPause() } },
+                    onClick = { playerConnection?.togglePlayPause() },
                 ) {
                     Box(
                         modifier = Modifier
@@ -245,7 +245,7 @@ fun PlayerScreen(
                     contentDescription = "Next",
                     size = 58,
                     iconSize = 30,
-                    onClick = { runCatching { playerConnection?.player?.seekToNextMediaItem() } },
+                    onClick = { playerConnection?.seekToNext() },
                 )
             }
 
@@ -277,11 +277,11 @@ fun PlayerScreen(
                 )
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(20.dp))
             LiquidGlassBox(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(88.dp),
+                    .height(92.dp),
                 shape = RoundedCornerShape(30.dp),
                 elevation = 12.dp,
             ) {
@@ -294,17 +294,13 @@ fun PlayerScreen(
                         icon = if (favorite) R.drawable.favorite else R.drawable.favorite_border,
                         label = "Favorite",
                         active = favorite,
-                        onClick = { favorite = !favorite },
+                        onClick = { playerConnection?.toggleLike() },
                     )
                     PlayerAction(
                         icon = if (shuffleEnabled) R.drawable.shuffle_on else R.drawable.shuffle,
                         label = "Shuffle",
                         active = shuffleEnabled,
-                        onClick = {
-                            runCatching {
-                                playerConnection?.player?.shuffleModeEnabled = !shuffleEnabled
-                            }
-                        },
+                        onClick = { playerConnection?.toggleShuffle() },
                     )
                     PlayerAction(
                         icon = when (repeatMode) {
@@ -314,18 +310,50 @@ fun PlayerScreen(
                         },
                         label = "Repeat",
                         active = repeatMode != Player.REPEAT_MODE_OFF,
-                        onClick = { runCatching { playerConnection?.player?.toggleRepeatMode() } },
+                        onClick = { playerConnection?.cycleRepeatMode() },
+                    )
+                    PlayerAction(
+                        icon = R.drawable.lyrics,
+                        label = "Lyrics",
+                        active = showLyrics,
+                        onClick = { if (metadata != null) showLyrics = true },
                     )
                     PlayerAction(
                         icon = R.drawable.queue_music,
                         label = "Queue",
-                        active = false,
-                        onClick = {},
+                        active = showQueue,
+                        onClick = { if (playerConnection != null) showQueue = true },
                     )
                 }
             }
             Spacer(Modifier.height(18.dp))
         }
+    }
+
+    if (showQueue && playerConnection != null) {
+        DiyyQueueSheet(
+            playerConnection = playerConnection,
+            onDismiss = { showQueue = false },
+        )
+    }
+    if (showLyrics && playerConnection != null) {
+        DiyyLyricsSheet(
+            playerConnection = playerConnection,
+            metadata = metadata,
+            positionMs = position,
+            onDismiss = { showLyrics = false },
+        )
+    }
+    if (showMenu) {
+        DiyyPlayerMenuSheet(
+            isFavorite = favorite,
+            onLyrics = { if (playerConnection != null && metadata != null) showLyrics = true },
+            onQueue = { if (playerConnection != null) showQueue = true },
+            onRadio = { playerConnection?.startRadioSeamlessly() },
+            onRetryPlayback = { playerConnection?.retryPlayback() },
+            onToggleFavorite = { playerConnection?.toggleLike() },
+            onDismiss = { showMenu = false },
+        )
     }
 }
 
@@ -363,23 +391,23 @@ private fun PlayerAction(
 ) {
     Column(
         modifier = Modifier
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
             .background(if (active) DiyySoftRed else Color.Transparent)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 8.dp, vertical = 9.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        IconButton(onClick = onClick, modifier = Modifier.size(30.dp)) {
-            Icon(
-                painter = painterResource(icon),
-                contentDescription = label,
-                tint = if (active) DiyyRed else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(22.dp),
-            )
-        }
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = label,
+            tint = if (active) DiyyRed else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(23.dp),
+        )
         Text(
             text = label,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelSmall,
             color = if (active) DiyyRed else MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
         )
     }
 }

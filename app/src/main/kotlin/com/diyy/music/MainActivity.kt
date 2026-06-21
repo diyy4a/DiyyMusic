@@ -223,7 +223,7 @@ class MainActivity : ComponentActivity() {
                     "local" -> id?.let { "collection/playlist:$it" } ?: "library"
                     "online" -> id?.let { "collection/online_playlist:$it" } ?: "library"
                     "liked" -> "collection/favorites"
-                    "downloaded" -> "collection/songs"
+                    "downloaded" -> "collection/downloads"
                     "top" -> "collection/recent"
                     else -> "library"
                 }

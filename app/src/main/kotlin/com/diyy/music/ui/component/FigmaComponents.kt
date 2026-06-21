@@ -710,11 +710,13 @@ fun DiyyStatCard(
     label: String,
     @DrawableRes icon: Int,
     modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
 ) {
     LiquidGlassBox(
         modifier = modifier.height(105.dp),
         shape = RoundedCornerShape(23.dp),
         elevation = 6.dp,
+        onClick = onClick,
     ) {
         Column(
             modifier = Modifier

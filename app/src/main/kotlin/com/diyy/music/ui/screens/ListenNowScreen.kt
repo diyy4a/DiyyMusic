@@ -22,7 +22,6 @@ import com.diyy.innertube.models.AlbumItem
 import com.diyy.innertube.models.ArtistItem
 import com.diyy.innertube.models.PlaylistItem
 import com.diyy.innertube.models.SongItem
-import com.diyy.innertube.models.WatchEndpoint
 import com.diyy.innertube.models.YTItem
 import com.diyy.music.db.entities.Album
 import com.diyy.music.db.entities.Artist
@@ -30,10 +29,8 @@ import com.diyy.music.db.entities.LocalItem
 import com.diyy.music.db.entities.Playlist
 import com.diyy.music.db.entities.Song
 import com.diyy.music.extensions.toMediaItem
-import com.diyy.music.models.toMediaMetadata
 import com.diyy.music.playback.PlayerConnection
 import com.diyy.music.playback.queues.ListQueue
-import com.diyy.music.playback.queues.YouTubeQueue
 import com.diyy.music.ui.component.DiyyScreenHeader
 import com.diyy.music.ui.component.EmptyFigmaState
 import com.diyy.music.ui.component.FigmaMediaGridItem
@@ -185,12 +182,9 @@ fun ListenNowScreen(
         }
 
         homePage?.sections?.take(3)?.forEach { section ->
+            val sectionSongs = section.items.filterIsInstance<SongItem>()
             item {
-                FigmaSectionHeader(
-                    title = section.title,
-                    actionText = "See All ›",
-                    onAction = {},
-                )
+                FigmaSectionHeader(title = section.title)
             }
             item {
                 LazyRow(
@@ -204,11 +198,11 @@ fun ListenNowScreen(
                             imageUrl = itemThumbnail(item),
                             onClick = {
                                 when (item) {
-                                    is SongItem -> playerConnection?.playQueue(
-                                        YouTubeQueue(
-                                            endpoint = WatchEndpoint(videoId = item.id),
-                                            preloadItem = item.toMediaMetadata(),
-                                        ),
+                                    is SongItem -> playOnlineSection(
+                                        connection = playerConnection,
+                                        title = section.title,
+                                        songs = sectionSongs,
+                                        startIndex = sectionSongs.indexOfFirst { it.id == item.id },
                                     )
                                     is AlbumItem -> onOpenCollection("online_album:${item.id}")
                                     is ArtistItem -> onOpenCollection("online_artist:${item.id}")
@@ -233,6 +227,22 @@ private fun playLocalSong(connection: PlayerConnection?, songs: List<Song>, inde
             title = "DiyyMusic",
             items = songs.map { it.toMediaItem() },
             startIndex = index.coerceIn(songs.indices),
+        ),
+    )
+}
+
+private fun playOnlineSection(
+    connection: PlayerConnection?,
+    title: String,
+    songs: List<SongItem>,
+    startIndex: Int,
+) {
+    if (connection == null || songs.isEmpty()) return
+    connection.playQueue(
+        ListQueue(
+            title = title,
+            items = songs.map { it.toMediaItem() },
+            startIndex = startIndex.coerceIn(songs.indices),
         ),
     )
 }

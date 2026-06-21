@@ -42,6 +42,7 @@ fun LibraryScreen(
     val songs by database.songsByCreateDateAsc().collectAsStateWithLifecycle(initialValue = emptyList())
     val albums by database.albumsByCreateDateAsc().collectAsStateWithLifecycle(initialValue = emptyList())
     val playlists by database.playlistsByCreateDateAsc().collectAsStateWithLifecycle(initialValue = emptyList())
+    val downloadedSongs by database.downloadedSongsByCreateDateAsc().collectAsStateWithLifecycle(initialValue = emptyList())
     val artists by database.artistsByCreateDateAsc().collectAsStateWithLifecycle(initialValue = emptyList())
     val events by database.events().collectAsStateWithLifecycle(initialValue = emptyList())
 
@@ -74,6 +75,7 @@ fun LibraryScreen(
                         label = "Songs",
                         icon = R.drawable.music_note,
                         modifier = Modifier.width(116.dp),
+                        onClick = { onOpenCollection("songs") },
                     )
                 }
                 item {
@@ -82,6 +84,7 @@ fun LibraryScreen(
                         label = "Playlists",
                         icon = R.drawable.queue_music,
                         modifier = Modifier.width(116.dp),
+                        onClick = { onOpenCollection("playlists") },
                     )
                 }
                 item {
@@ -90,6 +93,7 @@ fun LibraryScreen(
                         label = "Albums",
                         icon = R.drawable.album,
                         modifier = Modifier.width(116.dp),
+                        onClick = { onOpenCollection("albums") },
                     )
                 }
                 item {
@@ -98,6 +102,7 @@ fun LibraryScreen(
                         label = "Artists",
                         icon = R.drawable.artist,
                         modifier = Modifier.width(116.dp),
+                        onClick = { onOpenCollection("artists") },
                     )
                 }
             }
@@ -120,6 +125,13 @@ fun LibraryScreen(
                     subtitle = "Your favorite tracks",
                     icon = R.drawable.favorite,
                     onClick = { onOpenCollection("favorites") },
+                )
+                FigmaDivider()
+                FigmaSettingsRow(
+                    title = "Downloads",
+                    subtitle = "${downloadedSongs.size} offline songs",
+                    icon = R.drawable.download,
+                    onClick = { onOpenCollection("downloads") },
                 )
                 FigmaDivider()
                 FigmaSettingsRow(

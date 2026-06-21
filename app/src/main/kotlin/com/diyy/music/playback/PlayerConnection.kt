@@ -29,6 +29,7 @@ import com.diyy.music.extensions.getCurrentQueueIndex
 import com.diyy.music.extensions.getQueueWindows
 import com.diyy.music.extensions.metadata
 import com.diyy.music.extensions.togglePlayPause
+import com.diyy.music.extensions.toggleRepeatMode
 import com.diyy.music.playback.MusicService.MusicBinder
 import com.diyy.music.playback.queues.Queue
 import com.diyy.music.utils.dataStore
@@ -53,7 +54,7 @@ class PlayerConnection(
     context: Context,
     binder: MusicBinder,
     val database: MusicDatabase,
-    scope: CoroutineScope,
+    private val scope: CoroutineScope,
 ) : Player.Listener {
     private companion object {
         private const val TAG = "PlayerConnection"
@@ -243,7 +244,23 @@ class PlayerConnection(
             Timber.tag(TAG).w("playQueue called before player ready; delegating to service")
         }
         try {
-            service.playQueue(queue)
+            service.playQueue(queue, playWhenReady = true)
+
+            // The redesigned UI can dispatch a queue while the service/player is still
+            // finishing startup. Keep the request alive and explicitly arm playback once
+            // the first media item appears instead of leaving a silent, prepared queue.
+            scope.launch {
+                repeat(30) {
+                    kotlinx.coroutines.delay(100)
+                    val readyPlayer = runCatching { getPlayerSafe() }.getOrNull()
+                    if (readyPlayer != null && readyPlayer.mediaItemCount > 0) {
+                        if (readyPlayer.playbackState == Player.STATE_IDLE) readyPlayer.prepare()
+                        readyPlayer.playWhenReady = true
+                        return@launch
+                    }
+                }
+                Timber.tag(TAG).w("Queue was accepted but no media item became available")
+            }
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error in playQueue")
             throw e
@@ -307,6 +324,32 @@ class PlayerConnection(
         }
     }
 
+    fun toggleShuffle() {
+        try {
+            player.shuffleModeEnabled = !player.shuffleModeEnabled
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Error toggling shuffle")
+        }
+    }
+
+    fun cycleRepeatMode() {
+        try {
+            player.toggleRepeatMode()
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Error cycling repeat mode")
+        }
+    }
+
+    fun playQueueItem(index: Int) {
+        try {
+            if (index !in 0 until player.mediaItemCount) return
+            player.seekToDefaultPosition(index)
+            play()
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Error playing queue item $index")
+        }
+    }
+
     fun toggleMute() {
         service.toggleMute()
     }
@@ -337,7 +380,14 @@ class PlayerConnection(
                     castHandler.play()
                 }
             } else {
-                player.togglePlayPause()
+                if (player.mediaItemCount == 0) return
+                if (player.playbackState == Player.STATE_ENDED) {
+                    player.seekToDefaultPosition()
+                    player.prepare()
+                    player.playWhenReady = true
+                } else {
+                    player.togglePlayPause()
+                }
             }
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "Error in togglePlayPause")
@@ -347,6 +397,17 @@ class PlayerConnection(
     /**
      * Start playback - handles Cast when active
      */
+    fun retryPlayback() {
+        try {
+            if (player.mediaItemCount == 0) return
+            if (player.playbackState == Player.STATE_ENDED) player.seekToDefaultPosition()
+            player.prepare()
+            player.playWhenReady = true
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Error retrying playback")
+        }
+    }
+
     fun play() {
         try {
             val castHandler = service.castConnectionHandler
