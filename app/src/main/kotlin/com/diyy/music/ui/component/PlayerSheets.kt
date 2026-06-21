@@ -425,6 +425,25 @@ fun DiyyLyricsSheet(
 }
 
 @Composable
+private fun ColumnScope.LyricsMessage(message: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .weight(1f)
+            .padding(horizontal = 28.dp, vertical = 24.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = message,
+            color = Color.White.copy(alpha = 0.78f),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
 private fun SpotifyLyricLine(
     line: DiyyLyricLine,
     active: Boolean,
