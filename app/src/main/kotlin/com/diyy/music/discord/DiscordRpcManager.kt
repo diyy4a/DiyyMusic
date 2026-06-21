@@ -79,7 +79,7 @@ object DiscordRpcManager {
         currentIsPlaying = false
     }
 
-    enum class Status { Disconnected, Authorizing, Linked, Connected }
+    enum class Status { Disconnected, Authorizing, Connected }
 
     fun getAccessToken(): String? = accessToken
 
@@ -114,9 +114,6 @@ object DiscordRpcManager {
     private var scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val appId: String = BuildConfigProvider.appId
-
-    private val socialSdkEnabled: Boolean
-        get() = com.diyy.music.BuildConfig.DISCORD_SOCIAL_SDK_ENABLED
 
     private val auth: DiscordAuth = DiscordAuth()
 
@@ -174,10 +171,16 @@ object DiscordRpcManager {
             scope.launch(Dispatchers.Main) { onComplete(success) }
         }
 
-        if (_authorized && !accessToken.isNullOrBlank()) {
-            Timber.tag(TAG).d("authorize: account already linked, refreshing state")
+        if (_ready && _authorized) {
+            Timber.tag(TAG).d("authorize: short-circuit — already ready and authorized")
             authorizeInProgress = false
-            reconnectWithToken(accessToken.orEmpty())
+            scope.launch(Dispatchers.Main) { onComplete(true) }
+            return
+        }
+        if (_authorized) {
+            Timber.tag(TAG).d("authorize: short-circuit — authorized but not ready, reconnecting")
+            authorizeInProgress = false
+            reconnectWithToken(accessToken ?: "")
             scope.launch(Dispatchers.Main) { onComplete(true) }
             return
         }
@@ -196,33 +199,21 @@ object DiscordRpcManager {
                 accessToken = result.accessToken
                 _accessTokenFlow.value = result.accessToken
                 _authorized = true
-                _currentUser.value = fetchCurrentUser(result.accessToken)
 
-                if (!socialSdkEnabled) {
-                    // Normal Discord apps can always use `identify` for account linking.
-                    // Publishing Rich Presence from Android requires Discord Social SDK access,
-                    // which is deliberately opt-in at build time so an unapproved scope does not
-                    // break the entire OAuth flow with `invalid_scope`.
-                    _ready = false
-                    _connectionStatus.value = Status.Linked
-                    _lastError.value = null
-                    completeWith(true)
-                } else {
-                    try {
-                        reconnectMutex.withLock {
-                            runCatching { gateway.close(4000, "re-authorizing") }
-                            gateway.connect()
-                            gateway.identify("Bearer ${result.accessToken}")
-                        }
-                        completeWith(true)
-                    } catch (e: Throwable) {
-                        Timber.tag(TAG).e(e, "authorize: Social SDK gateway connect/identify failed")
-                        _ready = false
-                        _authorized = true
-                        _connectionStatus.value = Status.Linked
-                        _lastError.value = "discord_error_social_sdk_unavailable"
-                        completeWith(true)
+                try {
+                    reconnectMutex.withLock {
+                        runCatching { gateway.close(4000, "re-authorizing") }
+                        gateway.connect()
+                        gateway.identify("Bearer ${result.accessToken}")
                     }
+                    completeWith(true)
+                } catch (e: Throwable) {
+                    Timber.tag(TAG).e(e, "authorize: gateway connect/identify failed")
+                    _lastError.value = "discord_error_loopback_timeout"
+                    _connectionStatus.value = Status.Disconnected
+                    _ready = false
+                    _authorized = false
+                    completeWith(false)
                 }
             } catch (e: DiscordAuthException.OAuthRejected) {
                 Timber.tag(TAG).w(e, "authorize: OAuth rejected (%s)", e.errorCode)
@@ -480,11 +471,6 @@ object DiscordRpcManager {
             Timber.tag(TAG).w("reconnectWithToken: not initialized, ignoring")
             return
         }
-        if (token.isBlank()) {
-            Timber.tag(TAG).w("reconnectWithToken: empty token, logging out")
-            logout()
-            return
-        }
 
         scope.launch {
             reconnectMutex.withLock {
@@ -537,26 +523,13 @@ object DiscordRpcManager {
                         }
                     }
 
-                    val currentToken = accessToken ?: token
-                    _currentUser.value = fetchCurrentUser(currentToken)
-                    _authorized = true
-                    _lastError.value = null
-
-                    if (!socialSdkEnabled) {
-                        _ready = false
-                        _connectionStatus.value = Status.Linked
-                        return@withLock
-                    }
-
                     runCatching { gateway.close(4000, "reconnecting") }
                     gateway.connect()
-                    gateway.identify("Bearer $currentToken")
+                    gateway.identify("Bearer ${accessToken ?: token}")
                 } catch (e: Throwable) {
-                    Timber.tag(TAG).e(e, "reconnectWithToken: Social SDK connect/identify failed")
-                    _ready = false
-                    _authorized = true
-                    _connectionStatus.value = Status.Linked
-                    _lastError.value = "discord_error_social_sdk_unavailable"
+                    Timber.tag(TAG).e(e, "reconnectWithToken: connect/identify failed")
+                    _lastError.value = "discord_error_loopback_timeout"
+                    _connectionStatus.value = Status.Disconnected
                 }
             }
         }
@@ -668,18 +641,18 @@ object DiscordRpcManager {
                 Timber.tag(TAG).i("gateway: Disconnected (code=%d, remote=%s, reason=%s)",
                     event.code, event.remote, event.reason)
                 _ready = false
-                val accountLinked = !accessToken.isNullOrBlank()
-                _authorized = accountLinked
-                _connectionStatus.value = if (accountLinked) Status.Linked else Status.Disconnected
+                _authorized = false
+                _connectionStatus.value = Status.Disconnected
                 currentSongId = null
                 currentIsPlaying = false
                 imageResolutionJob?.cancel()
                 imageResolutionJob = null
-                if (socialSdkEnabled && accountLinked) {
-                    _lastError.value = "discord_error_social_sdk_unavailable"
-                }
-                if (event.code == 4004 && event.reason.contains("max reconnect", ignoreCase = true)) {
-                    _lastError.value = "discord_error_token_refresh_failed"
+                if (event.code in setOf(4001, 4004) && event.reason.contains("max reconnect", ignoreCase = true)) {
+                    _lastError.value = when (event.code) {
+                        4004 -> "discord_error_token_refresh_failed"
+                        4001 -> "discord_error_invalid_scope"
+                        else -> _lastError.value
+                    }
                 }
             }
             is GatewayEvent.InvalidSession -> {

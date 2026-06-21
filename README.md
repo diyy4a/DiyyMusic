@@ -4,25 +4,32 @@ DiyyMusic is an open-source Android music client with a modern pink interface an
 
 ## Current release
 
-**DiyyMusic 0.10.0** (`versionCode 31`)
+**DiyyMusic 1.1.0** (`versionCode 32`)
 
-## What changed in 0.10.0
+## Changes in 1.1.0
 
-- Rebuilt the full-lyrics playback dock so it matches the main player: pink controls, compact spacing, and a rounded progress track without the Android vertical slider thumb.
-- Added original bundled artwork for Search categories, Search recommendations, and Home recommendations.
-- Replaced the flat Search category blocks with image cards and added a visual **For You** section.
-- Replaced the single Home gradient promo with image-based **For You** and **Recommended Tonight** carousels.
-- The Home greeting now updates automatically and uses **Good night** from 22:00 through 03:59.
-- Preserved the Discord Rich Presence Gateway implementation from 0.9.9.
+- Fixed Codemagic compilation errors for missing `DISCORD_REDIRECT_URI` and `DISCORD_SOCIAL_SDK_ENABLED` BuildConfig fields.
+- Kept the Discord Gateway Rich Presence implementation while retaining compatibility fields for older source overlays.
+- Removed the two unused MetroList Wrapped images: `wrapped_playlistv1.png` and `wrapped_playlistv2.png`.
+- Cleaned project documentation so `README.md` is the only Markdown file.
+- Updated Codemagic and GitHub Actions artifact names to DiyyMusic 1.1.0.
 
-See `CHANGES-0.10.0.md` and `DISCORD-SETUP.md` for details.
+## Discord build settings
+
+The defaults are already included in `app/build.gradle.kts`. They can still be overridden through environment variables or `local.properties`:
+
+```properties
+DISCORD_APP_ID=1518124516893528125
+DISCORD_REDIRECT_URI=http://127.0.0.1:6463/callback
+DISCORD_SOCIAL_SDK_ENABLED=false
+```
 
 ## Build with Codemagic
 
-Push the project to the `main` branch and run the **DiyyMusic v0.10.0 APK** workflow. The generated artifact is:
+Push the project to the `main` branch and run the **DiyyMusic v1.1.0 APK** workflow. The generated artifact is:
 
 ```text
-DiyyMusic-v0.10.0-universal.apk
+DiyyMusic-v1.1.0-universal.apk
 ```
 
 ## Build locally

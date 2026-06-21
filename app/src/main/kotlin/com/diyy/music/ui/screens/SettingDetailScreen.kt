@@ -755,20 +755,18 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
 
     val status = when (connectionStatus) {
         DiscordRpcManager.Status.Connected -> "Connected"
-        DiscordRpcManager.Status.Linked -> "Account linked"
-        DiscordRpcManager.Status.Authorizing -> "Connecting…"
-        DiscordRpcManager.Status.Disconnected -> if (connected) "Account linked" else "Not connected"
+        DiscordRpcManager.Status.Authorizing -> "Authorizing…"
+        DiscordRpcManager.Status.Disconnected -> if (connected) "Reconnecting…" else "Not connected"
     }
     val actionButtonsEnabled = button1Enabled || button2Enabled
     val discordErrorMessage = when (lastError) {
-        "discord_error_social_sdk_unavailable" -> "Discord is linked, but the Android presence transport is not connected yet."
+        "discord_error_invalid_scope" -> "Discord rejected the Rich Presence permission for this application. Enable the required presence access, then reconnect."
+        "discord_error_public_client_required" -> "Enable Public Client for the DiyyMusic application in Discord Developer Portal, then reconnect."
+        "discord_error_oauth_rejected" -> "Discord rejected the authorization request."
         "discord_error_state_mismatch" -> "Discord returned an invalid authorization state. Close the browser and reconnect."
-        "discord_error_invalid_scope" -> "Discord rejected one of the requested permissions. This build now requests only the standard identify scope by default."
-        "discord_error_public_client_required" -> "Enable Public Client in Discord Developer Portal → OAuth2, then reconnect."
-        "discord_error_oauth_rejected" -> "Discord rejected the authorization request. Check the application OAuth2 settings."
         "discord_error_no_browser" -> "No browser was found to complete Discord authorization."
         "discord_error_token_refresh_failed" -> "The Discord session expired. Disconnect, then connect again."
-        "discord_error_loopback_timeout" -> "Discord did not finish the local callback in time. Close the browser and retry."
+        "discord_error_loopback_timeout" -> "Discord authorization or Gateway connection timed out. Close the browser and retry."
         null, "" -> null
         else -> lastError
     }
@@ -885,9 +883,9 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
                         ) {
                             Text(
                                 text = when {
-                                    presenceReady -> "Rich Presence is connected and will follow the current track."
-                                    enabled -> "Rich Presence is enabled in DiyyMusic. The app will keep retrying the Discord transport when available."
-                                    else -> "Discord is linked. Enable Rich Presence below to save the preference and retry the connection."
+                                    presenceReady -> "Rich Presence is connected directly to Discord Gateway and will follow the current track."
+                                    enabled -> "Connecting to Discord Gateway…"
+                                    else -> "Discord is authorized. Enable Rich Presence to publish the current track."
                                 },
                                 modifier = Modifier.padding(12.dp),
                                 color = if (presenceReady) {
@@ -930,10 +928,10 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
                 InlineSwitchRow(
                     title = "Enable Rich Presence",
                     subtitle = when {
-                        !connected -> "Link a Discord account first."
-                        presenceReady -> "Share the current track on Discord."
-                        enabled -> "Enabled locally. Waiting for the Discord transport to connect."
-                        else -> "Save the preference and retry the Discord connection."
+                        !connected -> "Connect Discord first."
+                        presenceReady -> "Share the current track through Discord Gateway."
+                        enabled -> "Connecting to Discord Gateway…"
+                        else -> "Publish the current track on your Discord profile."
                     },
                     checked = enabled,
                     enabled = connected,

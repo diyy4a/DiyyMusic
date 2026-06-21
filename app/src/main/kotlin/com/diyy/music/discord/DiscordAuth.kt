@@ -5,12 +5,10 @@ import android.content.ActivityNotFoundException
 import android.util.Base64
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.net.toUri
-import android.net.Uri
 import com.diyy.music.BuildConfig
 import com.diyy.music.discord.DiscordDefaults.DISCORD_OAUTH_AUTHORIZE
 import com.diyy.music.discord.DiscordDefaults.DISCORD_OAUTH_TOKEN
 import com.diyy.music.discord.DiscordDefaults.DISCORD_SCOPES
-import com.diyy.music.discord.DiscordDefaults.DISCORD_SOCIAL_SCOPES
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
@@ -56,44 +54,22 @@ class DiscordAuth(
     @Volatile
     private var activeLoopback: LoopbackAuthServer? = null
 
-    private val redirectUri: String
-        get() = BuildConfig.DISCORD_REDIRECT_URI
-
-    private val requestedScopes: String
-        get() = if (BuildConfig.DISCORD_SOCIAL_SDK_ENABLED) {
-            DISCORD_SOCIAL_SCOPES
-        } else {
-            DISCORD_SCOPES
-        }
-
-    private fun redirectConfig(): Triple<Int, String, String> {
-        val parsed = Uri.parse(redirectUri)
-        require(parsed.scheme == "http" && parsed.host in setOf("127.0.0.1", "localhost")) {
-            "DISCORD_REDIRECT_URI must use local loopback HTTP"
-        }
-        val port = parsed.port.takeIf { it in 1..65535 } ?: 6463
-        val path = parsed.path?.takeIf { it.startsWith("/") && it.length > 1 } ?: "/callback"
-        return Triple(port, path, parsed.buildUpon().encodedPath(path).build().toString())
-    }
+    private fun loopbackRedirectUri(port: Int): String = "http://127.0.0.1:$port/callback"
 
     suspend fun authorize(activity: Activity): DiscordAuthResult {
         val pkce = generatePkcePair()
         val state = generateState()
-        val (port, callbackPath, configuredRedirectUri) = redirectConfig()
-        val loopback = LoopbackAuthServer(
-            expectedState = state,
-            port = port,
-            callbackPath = callbackPath,
-        )
+        val loopback = LoopbackAuthServer(expectedState = state)
         activeLoopback = loopback
 
         try {
-            withContext(Dispatchers.IO) { loopback.start() }
-            Timber.tag(TAG).i("authorize: starting (redirectUri=%s)", configuredRedirectUri)
+            val port = withContext(Dispatchers.IO) { loopback.start() }
+            val redirectUri = loopbackRedirectUri(port)
+            Timber.tag(TAG).i("authorize: starting (redirectUri=%s)", redirectUri)
 
             val authUrl = buildAuthorizeUrl(
                 clientId = BuildConfig.DISCORD_APP_ID,
-                redirectUri = configuredRedirectUri,
+                redirectUri = redirectUri,
                 state = state,
                 challenge = pkce.challenge,
             )
@@ -118,7 +94,7 @@ class DiscordAuth(
             return exchangeAuthorizationCode(
                 code = callback.code,
                 verifier = pkce.verifier,
-                redirectUri = configuredRedirectUri,
+                redirectUri = redirectUri,
             )
         } finally {
             activeLoopback = null
@@ -180,7 +156,7 @@ class DiscordAuth(
             val accessToken = json.getString("access_token")
             val refreshToken = json.optString("refresh_token", "")
             val expiresIn = json.optLong("expires_in", 0L)
-            val scope = json.optString("scope", requestedScopes)
+            val scope = json.optString("scope", DISCORD_SCOPES)
             Timber.tag(TAG).i(
                 "token exchange: success (accessToken length=%d, refreshToken present=%s, expiresIn=%d)",
                 accessToken.length,
@@ -222,7 +198,7 @@ class DiscordAuth(
         challenge: String,
     ): String {
         val encodedRedirect = URLEncoder.encode(redirectUri, StandardCharsets.UTF_8.name())
-        val encodedScope = URLEncoder.encode(requestedScopes, StandardCharsets.UTF_8.name())
+        val encodedScope = URLEncoder.encode(DISCORD_SCOPES, StandardCharsets.UTF_8.name())
         return buildString {
             append(DISCORD_OAUTH_AUTHORIZE)
             append("?client_id=").append(clientId)
@@ -232,7 +208,6 @@ class DiscordAuth(
             append("&state=").append(state)
             append("&code_challenge_method=S256")
             append("&code_challenge=").append(challenge)
-            append("&prompt=consent")
         }
     }
 

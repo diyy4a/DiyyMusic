@@ -17,7 +17,7 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 object DiscordTokenStore {
-    private const val PREFS_NAME = "discord_token"
+    private const val PREFS_NAME = "diyymusic_discord_gateway_token_v2"
     private const val TOKEN_KEY = "access_token"
     private const val REFRESH_TOKEN_KEY = "refresh_token"
     private const val EXPIRES_AT_KEY = "expires_at"
@@ -164,7 +164,7 @@ object DiscordTokenStore {
 
     internal object AesKeystore {
         private const val ANDROID_KEYSTORE = "AndroidKeyStore"
-        private const val KEY_ALIAS = "diyymusic_discord_token_key"
+        private const val KEY_ALIAS = "diyymusic_discord_gateway_token_v2_key"
         private const val TRANSFORMATION = "AES/GCM/NoPadding"
         private const val GCM_IV_SIZE = 12
         private const val GCM_TAG_SIZE = 128
