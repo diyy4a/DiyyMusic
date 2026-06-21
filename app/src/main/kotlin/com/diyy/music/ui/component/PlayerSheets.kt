@@ -7,6 +7,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,8 +34,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,6 +44,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
@@ -51,6 +52,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -746,44 +749,16 @@ private fun FullLyricsPlayerDock(
     LiquidGlassBox(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-        shape = RoundedCornerShape(26.dp),
-        elevation = 8.dp,
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(28.dp),
+        elevation = 9.dp,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Artwork(
-                    url = metadata.thumbnailUrl,
-                    modifier = Modifier.size(46.dp),
-                    cornerRadius = 13,
-                )
-                Spacer(Modifier.size(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = metadata.title,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = metadata.artists.joinToString { it.name }.ifBlank { "DiyyMusic" },
-                        color = Color.White.copy(alpha = 0.66f),
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-
-            Slider(
+            FullLyricsTrackSlider(
                 value = visibleFraction,
                 onValueChange = {
                     seeking = true
@@ -793,25 +768,18 @@ private fun FullLyricsPlayerDock(
                     playerConnection.seekTo((durationMs * seekFraction).roundToLong())
                     seeking = false
                 },
-                colors = SliderDefaults.colors(
-                    thumbColor = Color.White,
-                    activeTrackColor = Color.White,
-                    inactiveTrackColor = Color.White.copy(alpha = 0.24f),
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(28.dp),
+                modifier = Modifier.fillMaxWidth(),
             )
             Row(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = formatLyricsTime(visiblePosition),
-                    color = Color.White.copy(alpha = 0.62f),
+                    color = DiyyRed.copy(alpha = 0.94f),
                     style = MaterialTheme.typography.labelSmall,
                 )
                 Spacer(Modifier.weight(1f))
                 Text(
                     text = formatLyricsTime(durationMs),
-                    color = Color.White.copy(alpha = 0.62f),
+                    color = Color.White.copy(alpha = 0.60f),
                     style = MaterialTheme.typography.labelSmall,
                 )
             }
@@ -826,34 +794,35 @@ private fun FullLyricsPlayerDock(
                     icon = if (shuffleEnabled) R.drawable.shuffle_on else R.drawable.shuffle,
                     contentDescription = "Shuffle",
                     active = shuffleEnabled,
-                    size = 38,
+                    size = 40,
                     onClick = playerConnection::toggleShuffle,
                 )
                 FullLyricsControlButton(
                     icon = R.drawable.skip_previous,
                     contentDescription = "Previous",
-                    size = 44,
+                    size = 46,
                     onClick = playerConnection::seekToPrevious,
                 )
                 Surface(
-                    modifier = Modifier.size(58.dp),
+                    modifier = Modifier.size(62.dp),
                     shape = CircleShape,
-                    color = Color.White,
+                    color = DiyyRed,
+                    shadowElevation = 6.dp,
                     onClick = playerConnection::togglePlayPause,
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             painter = painterResource(if (isPlaying) R.drawable.pause else R.drawable.play),
                             contentDescription = if (isPlaying) "Pause" else "Play",
-                            tint = Color.Black,
-                            modifier = Modifier.size(27.dp),
+                            tint = Color.White,
+                            modifier = Modifier.size(29.dp),
                         )
                     }
                 }
                 FullLyricsControlButton(
                     icon = R.drawable.skip_next,
                     contentDescription = "Next",
-                    size = 44,
+                    size = 46,
                     onClick = playerConnection::seekToNext,
                 )
                 FullLyricsControlButton(
@@ -864,7 +833,7 @@ private fun FullLyricsPlayerDock(
                     },
                     contentDescription = "Repeat",
                     active = repeatMode != Player.REPEAT_MODE_OFF,
-                    size = 38,
+                    size = 40,
                     onClick = playerConnection::cycleRepeatMode,
                 )
             }
@@ -883,15 +852,74 @@ private fun FullLyricsControlButton(
     Surface(
         modifier = Modifier.size(size.dp),
         shape = CircleShape,
-        color = if (active) Color.White.copy(alpha = 0.18f) else Color.Transparent,
+        color = if (active) DiyyRed.copy(alpha = 0.16f) else Color.Transparent,
         onClick = onClick,
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
                 painter = painterResource(icon),
                 contentDescription = contentDescription,
-                tint = if (active) Color.White else Color.White.copy(alpha = 0.86f),
+                tint = if (active) DiyyRed else Color.White.copy(alpha = 0.86f),
                 modifier = Modifier.size((size * 0.48f).dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun FullLyricsTrackSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    onValueChangeFinished: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var widthPx by remember { mutableIntStateOf(1) }
+    val currentOnValueChange by rememberUpdatedState(onValueChange)
+    val currentOnValueChangeFinished by rememberUpdatedState(onValueChangeFinished)
+    val fraction = value.coerceIn(0f, 1f)
+
+    Box(
+        modifier = modifier
+            .height(24.dp)
+            .onSizeChanged { widthPx = it.width.coerceAtLeast(1) }
+            .pointerInput(widthPx) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+
+                    fun updateValue(x: Float) {
+                        currentOnValueChange((x / widthPx.toFloat()).coerceIn(0f, 1f))
+                    }
+
+                    updateValue(down.position.x)
+                    down.consume()
+
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        updateValue(change.position.x)
+                        change.consume()
+                        if (!change.pressed) break
+                    }
+
+                    currentOnValueChangeFinished()
+                }
+            },
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(Color.White.copy(alpha = 0.15f)),
+        )
+        if (fraction > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(fraction)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(DiyyRed),
             )
         }
     }

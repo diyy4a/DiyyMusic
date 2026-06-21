@@ -7,8 +7,6 @@ import android.speech.RecognizerIntent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,10 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -64,6 +59,7 @@ import com.diyy.music.extensions.toMediaItem
 import com.diyy.music.playback.PlayerConnection
 import com.diyy.music.playback.queues.ListQueue
 import com.diyy.music.ui.component.Artwork
+import com.diyy.music.ui.component.DiyyEditorialCard
 import com.diyy.music.ui.component.DiyyScreenHeader
 import com.diyy.music.ui.component.EmptyFigmaState
 import com.diyy.music.ui.component.FigmaMediaGridItem
@@ -79,9 +75,14 @@ import java.util.Locale
 private data class SearchCategory(
     val title: String,
     val subtitle: String,
-    val icon: Int,
-    val lightColors: List<Color>,
-    val darkColors: List<Color>,
+    val imageRes: Int,
+)
+
+private data class SearchEditorial(
+    val title: String,
+    val subtitle: String,
+    val imageRes: Int,
+    val query: String,
 )
 
 private val trendingSearches = listOf(
@@ -93,31 +94,17 @@ private val trendingSearches = listOf(
 )
 
 private val searchCategories = listOf(
-    SearchCategory(
-        "Pop", "Popular hits", R.drawable.favorite,
-        lightColors = listOf(Color(0xFFFFB7D0), Color(0xFFFFE4ED)),
-        darkColors = listOf(Color(0xFF5C1731), Color(0xFF29111C)),
-    ),
-    SearchCategory(
-        "Chill", "Slow & dreamy", R.drawable.cloud,
-        lightColors = listOf(Color(0xFFD5BCFF), Color(0xFFF0E8FF)),
-        darkColors = listOf(Color(0xFF3E2A64), Color(0xFF21182F)),
-    ),
-    SearchCategory(
-        "Indie", "Fresh finds", R.drawable.radio,
-        lightColors = listOf(Color(0xFFFFD2B6), Color(0xFFFFEEE1)),
-        darkColors = listOf(Color(0xFF5A3024), Color(0xFF2A1915)),
-    ),
-    SearchCategory(
-        "Anime", "J-pop & OST", R.drawable.artist,
-        lightColors = listOf(Color(0xFFBFD1FF), Color(0xFFE8EEFF)),
-        darkColors = listOf(Color(0xFF263E68), Color(0xFF151E31)),
-    ),
-    SearchCategory(
-        "Focus", "Stay in flow", R.drawable.bedtime,
-        lightColors = listOf(Color(0xFFBDEADF), Color(0xFFE4F8F3)),
-        darkColors = listOf(Color(0xFF205045), Color(0xFF132A25)),
-    ),
+    SearchCategory("Pop", "Popular hits", R.drawable.diyy_category_pop),
+    SearchCategory("Chill", "Slow & dreamy", R.drawable.diyy_category_chill),
+    SearchCategory("Indie", "Fresh finds", R.drawable.diyy_category_indie),
+    SearchCategory("Hip-Hop", "Beats & rhythm", R.drawable.diyy_category_hiphop),
+)
+
+private val searchForYou = listOf(
+    SearchEditorial("Late Night Vibes", "Chill tracks for the night", R.drawable.diyy_mix_late_night, "late night r&b"),
+    SearchEditorial("Rainy Day", "Perfect for rainy weather", R.drawable.diyy_mix_rainy, "rainy day songs"),
+    SearchEditorial("Feel Good Hits", "Uplifting and energetic", R.drawable.diyy_mix_feel_good, "feel good hits"),
+    SearchEditorial("After Hours", "Neon nights and slow beats", R.drawable.diyy_mix_after_hours, "after hours music"),
 )
 
 @Composable
@@ -285,61 +272,32 @@ fun SearchScreen(
                 }
             }
 
-            item { FigmaSectionHeader(title = "Discover") }
             item {
-                LiquidGlassBox(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 18.dp)
-                        .height(118.dp),
-                    shape = RoundedCornerShape(28.dp),
-                    elevation = 10.dp,
-                    onClick = {
-                        query = "Trending music"
+                FigmaSectionHeader(
+                    title = "For You",
+                    actionText = "More",
+                    onAction = {
+                        query = "personalized music"
                         submittedQuery = query
                     },
+                )
+            }
+            item {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(18.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(72.dp)
-                                .clip(RoundedCornerShape(24.dp))
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(Color(0xFFFF88AF), DiyyRed),
-                                    ),
-                                ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.trending_up),
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(34.dp),
-                            )
-                        }
-                        Spacer(Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Trending right now",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            Text(
-                                text = "Find songs everyone is playing today.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Icon(
-                            painter = painterResource(R.drawable.navigate_next),
-                            contentDescription = null,
-                            tint = DiyyRed,
+                    items(searchForYou, key = { it.title }) { card ->
+                        DiyyEditorialCard(
+                            title = card.title,
+                            subtitle = card.subtitle,
+                            imageRes = card.imageRes,
+                            onClick = {
+                                query = card.query
+                                submittedQuery = card.query
+                            },
+                            modifier = Modifier.width(176.dp),
+                            cardHeight = 210.dp,
                         )
                     }
                 }
@@ -655,52 +613,15 @@ private fun CategoryCard(
     category: SearchCategory,
     onClick: () -> Unit,
 ) {
-    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.45f
-    val colors = if (isDark) category.darkColors else category.lightColors
-    val titleColor = if (isDark) Color.White else Color(0xFF24171D)
-    val subtitleColor = titleColor.copy(alpha = if (isDark) 0.66f else 0.58f)
-
-    Box(
-        modifier = Modifier
-            .width(126.dp)
-            .height(150.dp)
-            .clip(RoundedCornerShape(28.dp))
-            .background(Brush.verticalGradient(colors))
-            .clickable(onClick = onClick)
-            .padding(15.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(54.dp)
-                .clip(RoundedCornerShape(19.dp))
-                .background(
-                    if (isDark) Color.White.copy(alpha = 0.12f)
-                    else Color.White.copy(alpha = 0.58f),
-                )
-                .align(Alignment.TopStart),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(category.icon),
-                contentDescription = null,
-                tint = DiyyRed,
-                modifier = Modifier.size(28.dp),
-            )
-        }
-        Column(modifier = Modifier.align(Alignment.BottomStart)) {
-            Text(
-                text = category.title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = titleColor,
-            )
-            Text(
-                text = category.subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = subtitleColor,
-            )
-        }
-    }
+    DiyyEditorialCard(
+        title = category.title,
+        subtitle = category.subtitle,
+        imageRes = category.imageRes,
+        onClick = onClick,
+        modifier = Modifier.width(136.dp),
+        cardHeight = 158.dp,
+        showPlayButton = false,
+    )
 }
 
 @Composable

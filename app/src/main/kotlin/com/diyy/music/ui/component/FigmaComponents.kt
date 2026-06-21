@@ -723,6 +723,88 @@ fun FigmaPromoCard(
 }
 
 @Composable
+fun DiyyEditorialCard(
+    title: String,
+    subtitle: String,
+    @DrawableRes imageRes: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    cardHeight: Dp = 214.dp,
+    showPlayButton: Boolean = true,
+) {
+    Card(
+        modifier = modifier
+            .height(cardHeight)
+            .shadow(8.dp, RoundedCornerShape(26.dp), clip = false),
+        shape = RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        onClick = onClick,
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Image(
+                painter = painterResource(imageRes),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.10f),
+                                Color.Black.copy(alpha = 0.88f),
+                            ),
+                        ),
+                    ),
+            )
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .padding(start = 15.dp, end = if (showPlayButton) 54.dp else 15.dp, bottom = 15.dp),
+            ) {
+                Text(
+                    text = title,
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = subtitle,
+                    color = Color.White.copy(alpha = 0.72f),
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (showPlayButton) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(12.dp)
+                        .size(38.dp),
+                    shape = CircleShape,
+                    color = DiyyRed,
+                    shadowElevation = 4.dp,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.play),
+                        contentDescription = "Play",
+                        tint = Color.White,
+                        modifier = Modifier.padding(9.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun FigmaMediaGridItem(
     title: String,
     subtitle: String?,

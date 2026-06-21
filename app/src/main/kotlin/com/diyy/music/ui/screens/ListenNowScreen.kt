@@ -8,18 +8,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -28,6 +25,7 @@ import com.diyy.innertube.models.ArtistItem
 import com.diyy.innertube.models.PlaylistItem
 import com.diyy.innertube.models.SongItem
 import com.diyy.innertube.models.YTItem
+import com.diyy.music.R
 import com.diyy.music.db.entities.Album
 import com.diyy.music.db.entities.Artist
 import com.diyy.music.db.entities.LocalItem
@@ -36,16 +34,46 @@ import com.diyy.music.db.entities.Song
 import com.diyy.music.extensions.toMediaItem
 import com.diyy.music.playback.PlayerConnection
 import com.diyy.music.playback.queues.ListQueue
+import com.diyy.music.ui.component.DiyyEditorialCard
 import com.diyy.music.ui.component.DiyyScreenHeader
 import com.diyy.music.ui.component.EmptyFigmaState
 import com.diyy.music.ui.component.FigmaMediaGridItem
 import com.diyy.music.ui.component.FigmaMediaRow
-import com.diyy.music.ui.component.FigmaPromoCard
 import com.diyy.music.ui.component.FigmaSectionHeader
 import com.diyy.music.ui.displaySubtitle
-import com.diyy.music.ui.theme.DiyyRed
 import com.diyy.music.viewmodels.HomeViewModel
 import java.util.Calendar
+import kotlinx.coroutines.delay
+
+private data class TimeGreeting(
+    val title: String,
+    val subtitle: String,
+)
+
+private data class HomeEditorial(
+    val title: String,
+    val subtitle: String,
+    val imageRes: Int,
+)
+
+private val homeForYou = listOf(
+    HomeEditorial("Late Night Vibes", "Smooth R&B and mellow pop", R.drawable.diyy_mix_late_night),
+    HomeEditorial("Rainy Day", "Soft tracks for quiet weather", R.drawable.diyy_mix_rainy),
+    HomeEditorial("Feel Good Hits", "Bright songs to lift the mood", R.drawable.diyy_mix_feel_good),
+)
+
+private val homeTonight = listOf(
+    HomeEditorial("Sunset Drive", "Warm songs for the road", R.drawable.diyy_mix_sunset),
+    HomeEditorial("Starry Mood", "Dreamy music after dark", R.drawable.diyy_mix_starry),
+    HomeEditorial("After Hours", "Neon nights and slow beats", R.drawable.diyy_mix_after_hours),
+)
+
+private fun currentGreeting(): TimeGreeting = when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
+    in 4..10 -> TimeGreeting("Good morning", "Start the day with something worth hearing.")
+    in 11..15 -> TimeGreeting("Good afternoon", "Keep the day moving with your music.")
+    in 16..21 -> TimeGreeting("Good evening", "Slow down and let the music settle in.")
+    else -> TimeGreeting("Good night", "Unwind, relax, and let the music play.")
+}
 
 @Composable
 fun ListenNowScreen(
@@ -63,11 +91,10 @@ fun ListenNowScreen(
     val accountImageUrl by viewModel.accountImageUrl.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val pullToRefreshState = rememberPullToRefreshState()
-    val greeting = remember {
-        when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
-            in 4..10 -> "Good morning"
-            in 11..15 -> "Good afternoon"
-            else -> "Good evening"
+    val greeting by produceState(initialValue = currentGreeting()) {
+        while (true) {
+            value = currentGreeting()
+            delay(60_000L)
         }
     }
 
@@ -94,18 +121,11 @@ fun ListenNowScreen(
         ) {
         item {
             DiyyScreenHeader(
-                title = greeting,
+                title = greeting.title,
+                subtitle = greeting.subtitle,
                 onHistory = onOpenHistory,
                 onProfile = onOpenProfile,
                 profileImageUrl = accountImageUrl,
-            )
-        }
-        item {
-            Text(
-                text = "Let’s enjoy some music ✦",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 0.dp),
             )
         }
 
@@ -156,18 +176,68 @@ fun ListenNowScreen(
             }
         }
 
-        item { FigmaSectionHeader(title = "For You") }
         item {
-            FigmaPromoCard(
-                title = "Your Daily Mix",
-                subtitle = "Made for you",
-                footer = "Fresh picks based on your listening",
-                onClick = {
-                    val picks = quickPicks.orEmpty()
-                    if (picks.isNotEmpty()) playLocalSong(playerConnection, picks, 0) else viewModel.refresh()
-                },
-                modifier = Modifier.padding(horizontal = 18.dp, vertical = 2.dp),
+            FigmaSectionHeader(
+                title = "For You",
+                actionText = "See All ›",
+                onAction = viewModel::refresh,
             )
+        }
+        item {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 18.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                items(homeForYou, key = { it.title }) { card ->
+                    DiyyEditorialCard(
+                        title = card.title,
+                        subtitle = card.subtitle,
+                        imageRes = card.imageRes,
+                        onClick = {
+                            val picks = quickPicks.orEmpty()
+                            if (picks.isNotEmpty()) {
+                                val index = homeForYou.indexOf(card).coerceAtMost(picks.lastIndex)
+                                playLocalSong(playerConnection, picks, index)
+                            } else {
+                                viewModel.refresh()
+                            }
+                        },
+                        modifier = Modifier.fillParentMaxWidth(0.48f),
+                    )
+                }
+            }
+        }
+
+        item {
+            FigmaSectionHeader(
+                title = "Recommended Tonight",
+                actionText = "See All ›",
+                onAction = onOpenRadio,
+            )
+        }
+        item {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 18.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                items(homeTonight, key = { it.title }) { card ->
+                    DiyyEditorialCard(
+                        title = card.title,
+                        subtitle = card.subtitle,
+                        imageRes = card.imageRes,
+                        onClick = {
+                            val picks = quickPicks.orEmpty()
+                            if (picks.isNotEmpty()) {
+                                val index = (homeTonight.indexOf(card) + 3).coerceAtMost(picks.lastIndex)
+                                playLocalSong(playerConnection, picks, index)
+                            } else {
+                                onOpenRadio()
+                            }
+                        },
+                        modifier = Modifier.fillParentMaxWidth(0.43f),
+                    )
+                }
+            }
         }
 
         item {

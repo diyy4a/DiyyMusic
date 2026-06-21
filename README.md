@@ -4,38 +4,25 @@ DiyyMusic is an open-source Android music client with a modern pink interface an
 
 ## Current release
 
-**DiyyMusic 0.9.8** (`versionCode 29`)
+**DiyyMusic 0.10.0** (`versionCode 31`)
 
-## What changed in 0.9.8
+## What changed in 0.10.0
 
-- Fixed the Codemagic/GitHub FOSS compilation error `Unresolved reference: STATE_ENDED`.
-- Smart Radio continuation now checks the Media3 state with `Player.STATE_ENDED`.
-- Playback behavior remains the same as 0.9.7; this is a focused build hotfix.
+- Rebuilt the full-lyrics playback dock so it matches the main player: pink controls, compact spacing, and a rounded progress track without the Android vertical slider thumb.
+- Added original bundled artwork for Search categories, Search recommendations, and Home recommendations.
+- Replaced the flat Search category blocks with image cards and added a visual **For You** section.
+- Replaced the single Home gradient promo with image-based **For You** and **Recommended Tonight** carousels.
+- The Home greeting now updates automatically and uses **Good night** from 22:00 through 03:59.
+- Preserved the Discord Rich Presence Gateway implementation from 0.9.9.
 
-## Discord account linking and Rich Presence
-
-The bundled Discord application ID is:
-
-```text
-1518124516893528125
-```
-
-Account linking uses the standard OAuth `identify` scope and this callback:
-
-```text
-http://127.0.0.1:6463/callback
-```
-
-Enable **Public Client** and register the exact callback in the Discord Developer Portal.
-
-Android activity publishing is intentionally disabled unless an approved Discord Social SDK transport is integrated into the build. OAuth account linking alone cannot publish the currently playing song. See `DISCORD-SETUP.md`.
+See `CHANGES-0.10.0.md` and `DISCORD-SETUP.md` for details.
 
 ## Build with Codemagic
 
-Push the project to the `main` branch and run the **DiyyMusic v0.9.8 APK** workflow. The generated artifact is:
+Push the project to the `main` branch and run the **DiyyMusic v0.10.0 APK** workflow. The generated artifact is:
 
 ```text
-DiyyMusic-v0.9.8-universal.apk
+DiyyMusic-v0.10.0-universal.apk
 ```
 
 ## Build locally

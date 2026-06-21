@@ -102,8 +102,8 @@ android {
         applicationId = applicationIdOverride ?: baseApplicationId
         minSdk = 26
         targetSdk = 36
-        versionCode = 29
-        versionName = "0.9.8"
+        versionCode = 31
+        versionName = "0.10.0"
         resValue("string", "app_name", appNameOverride ?: "DiyyMusic")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -128,24 +128,10 @@ android {
                 ?: "1518124516893528125"
         ).filter(Char::isDigit).ifBlank { "1518124516893528125" }
 
-        val discordRedirectUri = (
-            localProperties.getProperty("DISCORD_REDIRECT_URI")
-                ?: System.getenv("DISCORD_REDIRECT_URI")
-                ?: "http://127.0.0.1:6463/callback"
-        ).trim().ifBlank { "http://127.0.0.1:6463/callback" }
-
-        val discordSocialSdkEnabled = (
-            localProperties.getProperty("DISCORD_SOCIAL_SDK_ENABLED")
-                ?: System.getenv("DISCORD_SOCIAL_SDK_ENABLED")
-                ?: "false"
-        ).trim().equals("true", ignoreCase = true)
-
         buildConfigField("String", "LASTFM_API_KEY", "\"$lastFmKey\"")
         buildConfigField("String", "LASTFM_SECRET", "\"$lastFmSecret\"")
         buildConfigField("String", "ARCHITECTURE", "\"$targetAbi\"")
         buildConfigField("Long", "DISCORD_APP_ID", "${discordAppId}L")
-        buildConfigField("String", "DISCORD_REDIRECT_URI", "\"$discordRedirectUri\"")
-        buildConfigField("Boolean", "DISCORD_SOCIAL_SDK_ENABLED", discordSocialSdkEnabled.toString())
     }
 
     flavorDimensions += listOf("variant")
