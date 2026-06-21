@@ -1,20 +1,20 @@
 # Build notes
 
-DiyyMusic 0.8.0 uses Java 21, Android SDK 37, and the FOSS debug variant.
+DiyyMusic 0.8.1 uses Java 21, Android SDK 37, and the FOSS debug variant.
 
 ## Codemagic
 
 The workflow builds:
 
 ```text
-DiyyMusic-v0.8.0-universal.apk
+DiyyMusic-v0.8.1-universal.apk
 ```
 
 The persistent debug keystore is reused when valid and recreated only when missing or invalid.
 
 ## GitHub Actions
 
-Run **Build DiyyMusic v0.8.0 APK** and download the `DiyyMusic-v0.8.0-APK` artifact.
+Run **Build DiyyMusic v0.8.1 APK** and download the `DiyyMusic-v0.8.1-APK` artifact.
 
 ## Local
 

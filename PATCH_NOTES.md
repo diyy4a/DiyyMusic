@@ -1,17 +1,17 @@
-# DiyyMusic v0.8.0 Functional Backend Patch
+# DiyyMusic v0.8.1 Runtime and Feature Patch
 
-Apply this patch over DiyyMusic v0.7.2.
+Apply this source over DiyyMusic v0.8.0.
 
 ## Main fixes
 
-- Rewires song playback to the existing MetroList/Media3 backend instead of placeholder UI callbacks.
-- Replaces fragile online song radio-only launches with immediate `ListQueue` playback.
-- Connects all Now Playing controls to the real player.
-- Adds working Queue, Lyrics, song overflow menu, Start Radio, and Retry Playback sheets/actions.
-- Makes Favorites persist, even when an online track has not been inserted into Room yet.
-- Routes Profile cards and feature rows to the correct destinations.
-- Adds a real Downloads collection.
-- Disables minification/resource shrinking for the installable debug APK.
-- Builds a universal ARM APK.
+- Uses the real Room event history for Recently Played on Home.
+- Prevents malformed provider tags from crashing the lyrics sheet.
+- Adds native and Compose startup splash screens.
+- Adds working song download, cancel, remove, and progress states.
+- Adds normal Google/YouTube Music login while retaining manual session data under Advanced.
+- Adds Discord connect, disconnect, account status, and Rich Presence controls.
+- Expands Player and Audio settings with quality, crossfade, queue, playback, and hardware options.
+- Expands Appearance settings with theme mode, pure black, refresh rate, player artwork, glass outline, and screenshot controls.
+- Updates version/build outputs to 0.8.1 (`versionCode 14`).
 
 Extract the ZIP into the project root and overwrite the existing files.

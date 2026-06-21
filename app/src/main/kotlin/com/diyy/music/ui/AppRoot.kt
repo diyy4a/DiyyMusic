@@ -1,9 +1,13 @@
 package com.diyy.music.ui
 
 import android.net.Uri
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -14,8 +18,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -30,13 +35,16 @@ import androidx.navigation.navArgument
 import com.diyy.music.constants.InnerTubeCookieKey
 import com.diyy.music.db.MusicDatabase
 import com.diyy.music.models.MediaMetadata
+import com.diyy.music.playback.DownloadUtil
 import com.diyy.music.playback.PlayerConnection
 import com.diyy.music.ui.component.DiyyBottomNavigation
+import com.diyy.music.ui.component.DiyyBrandMark
 import com.diyy.music.ui.component.DiyyMiniPlayer
 import com.diyy.music.ui.screens.CollectionScreen
 import com.diyy.music.ui.screens.HistoryScreen
 import com.diyy.music.ui.screens.LibraryDisplayScreen
 import com.diyy.music.ui.screens.LibraryScreen
+import com.diyy.music.ui.screens.LoginScreen
 import com.diyy.music.ui.screens.ListenNowScreen
 import com.diyy.music.ui.screens.PlayerScreen
 import com.diyy.music.ui.screens.ProfileScreen
@@ -44,6 +52,7 @@ import com.diyy.music.ui.screens.RadioScreen
 import com.diyy.music.ui.screens.SearchScreen
 import com.diyy.music.ui.screens.SettingDetailScreen
 import com.diyy.music.ui.screens.SettingsScreen
+import com.diyy.music.ui.theme.DiyyRed
 import com.diyy.music.utils.dataStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -51,6 +60,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun DiyyMusicRoot(
     database: MusicDatabase,
+    downloadUtil: DownloadUtil,
     playerConnection: PlayerConnection?,
     requestedRoute: String? = null,
     onRequestedRouteConsumed: () -> Unit = {},
@@ -73,6 +83,17 @@ fun DiyyMusicRoot(
     var searchSeed by remember { mutableStateOf("") }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var showStartupSplash by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        delay(700)
+        showStartupSplash = false
+    }
+
+    if (showStartupSplash) {
+        DiyyStartupSplash()
+        return
+    }
 
     LaunchedEffect(requestedRoute) {
         when (requestedRoute) {
@@ -170,7 +191,14 @@ fun DiyyMusicRoot(
                 )
             }
             composable(DiyyRoutes.PLAYER) {
-                PlayerScreen(playerConnection = playerConnection, onBack = navController::navigateUp)
+                PlayerScreen(
+                    playerConnection = playerConnection,
+                    downloadUtil = downloadUtil,
+                    onBack = navController::navigateUp,
+                )
+            }
+            composable(DiyyRoutes.LOGIN) {
+                LoginScreen(onBack = navController::navigateUp)
             }
             composable(
                 route = DiyyRoutes.FEATURE,
@@ -179,6 +207,7 @@ fun DiyyMusicRoot(
                 SettingDetailScreen(
                     section = Uri.decode(entry.arguments?.getString("section").orEmpty()),
                     onBack = navController::navigateUp,
+                    onOpenLogin = { navController.navigate(DiyyRoutes.LOGIN) },
                 )
             }
             composable(DiyyRoutes.SETTINGS) {
@@ -194,6 +223,7 @@ fun DiyyMusicRoot(
                 SettingDetailScreen(
                     section = Uri.decode(entry.arguments?.getString("section").orEmpty()),
                     onBack = navController::navigateUp,
+                    onOpenLogin = { navController.navigate(DiyyRoutes.LOGIN) },
                 )
             }
             composable(DiyyRoutes.HISTORY) {
@@ -250,4 +280,24 @@ private fun rememberMiniPlayerProgress(playerConnection: PlayerConnection?): Flo
         }
     }
     return progress
+}
+
+
+@Composable
+private fun DiyyStartupSplash() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            DiyyBrandMark(showName = true)
+            CircularProgressIndicator(
+                modifier = Modifier.padding(top = 18.dp).size(24.dp),
+                color = DiyyRed,
+                strokeWidth = 2.5.dp,
+            )
+        }
+    }
 }

@@ -3,6 +3,14 @@
     <!-- Widget Theme for Android 12+ with Dynamic Colors -->
     <style name="Theme.Widget.DiyyMusic" parent="@android:style/Theme.DeviceDefault.DayNight" />
 
+
+    <style name="Theme.DiyyMusic.Splash" parent="Theme.DiyyMusic">
+        <item name="android:windowSplashScreenBackground">#FCFBFD</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/diyy_brand_mark</item>
+        <item name="android:windowSplashScreenAnimationDuration">500</item>
+        <item name="android:windowBackground">@drawable/diyy_splash_screen</item>
+    </style>
+
     <style name="Theme.DiyyMusic.Transparent" parent="@android:style/Theme.Translucent.NoTitleBar">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsTranslucent">true</item>

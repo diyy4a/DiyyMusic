@@ -51,7 +51,7 @@ fun ListenNowScreen(
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
-    val keepListening by viewModel.keepListening.collectAsStateWithLifecycle()
+    val recentEvents by viewModel.database.events().collectAsStateWithLifecycle(initialValue = emptyList())
     val quickPicks by viewModel.quickPicks.collectAsStateWithLifecycle()
     val homePage by viewModel.homePage.collectAsStateWithLifecycle()
     val greeting = remember {
@@ -93,7 +93,10 @@ fun ListenNowScreen(
             )
         }
 
-        val recentItems = keepListening.orEmpty().take(10)
+        // Use the same event history source as the "See All" screen. The old
+        // implementation used a shuffled most-played query with an offset, so a
+        // perfectly valid short history could appear empty on Home.
+        val recentItems = recentEvents.distinctBy { it.song.id }.map { it.song }.take(10)
         if (recentItems.isEmpty()) {
             item {
                 EmptyFigmaState(

@@ -12,6 +12,13 @@
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
 
+
+    <style name="Theme.DiyyMusic.Splash" parent="Theme.DiyyMusic">
+        <item name="android:windowBackground">@drawable/diyy_splash_screen</item>
+        <item name="android:windowDisablePreview">false</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+
     <!-- Widget Theme with Material 3 colors fallback for API < 31 -->
     <style name="Theme.Widget.DiyyMusic" parent="@android:style/Theme.DeviceDefault.DayNight">
         <item name="android:colorBackground">#E6E1E5</item>

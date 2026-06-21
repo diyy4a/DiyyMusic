@@ -258,8 +258,8 @@ fun ProfileScreen(
                 modifier = Modifier.padding(horizontal = 18.dp),
             ) {
                 FigmaSettingsRow(
-                    title = "Account & Token",
-                    subtitle = "Manage login token and connected account",
+                    title = "Music Account",
+                    subtitle = "Sign in, switch account, or manage the session",
                     icon = R.drawable.key,
                     onClick = { onOpenFeature("account") },
                 )
@@ -273,14 +273,14 @@ fun ProfileScreen(
                 FigmaDivider()
                 FigmaSettingsRow(
                     title = "Playback & Audio",
-                    subtitle = "Quality, cache, and audio controls",
+                    subtitle = "Quality, transitions, queue, and audio controls",
                     icon = R.drawable.equalizer,
                     onClick = { onOpenFeature("player") },
                 )
                 FigmaDivider()
                 FigmaSettingsRow(
-                    title = "Connected Services",
-                    subtitle = "Integrations and account services",
+                    title = "Discord Rich Presence",
+                    subtitle = "Connect Discord and share the current track",
                     icon = R.drawable.integration,
                     onClick = { onOpenFeature("discord") },
                 )

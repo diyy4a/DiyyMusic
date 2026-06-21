@@ -13,14 +13,22 @@ import android.view.View
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.lifecycle.lifecycleScope
+import com.diyy.music.constants.DarkMode
+import com.diyy.music.constants.DarkModeKey
 import com.diyy.music.constants.DisableScreenshotKey
 import com.diyy.music.constants.EnableHighRefreshRateKey
+import com.diyy.music.constants.KeepScreenOn
+import com.diyy.music.constants.PureBlackKey
 import com.diyy.music.constants.StopMusicOnTaskClearKey
 import com.diyy.music.db.MusicDatabase
 import com.diyy.music.listentogether.ListenTogetherManager
@@ -31,6 +39,7 @@ import com.diyy.music.playback.PlayerConnection
 import com.diyy.music.ui.DiyyMusicRoot
 import com.diyy.music.ui.theme.DiyyMusicTheme
 import com.diyy.music.utils.SyncUtils
+import com.diyy.music.extensions.toEnum
 import com.diyy.music.utils.dataStore
 import com.diyy.music.utils.get
 import dagger.hilt.android.AndroidEntryPoint
@@ -90,6 +99,9 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // The launch theme supplies the native logo splash; switch to the regular
+        // app theme before inflating Compose content.
+        setTheme(R.style.Theme_DiyyMusic)
         super.onCreate(savedInstanceState)
         window.decorView.layoutDirection = View.LAYOUT_DIRECTION_LTR
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -123,26 +135,63 @@ class MainActivity : ComponentActivity() {
                 .distinctUntilChanged()
                 .collectLatest { enabled ->
                     val params = window.attributes
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        if (enabled) {
-                            params.preferredDisplayModeId = 0
+                    val display = window.windowManager.defaultDisplay
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        val modes = display.supportedModes
+                        val selectedMode = if (enabled) {
+                            modes.maxByOrNull { it.refreshRate }
                         } else {
-                            val modes = window.windowManager.defaultDisplay.supportedModes
-                            val mode60 = modes.firstOrNull { kotlin.math.abs(it.refreshRate - 60f) < 1f }
-                                ?: modes.minByOrNull { kotlin.math.abs(it.refreshRate - 60f) }
-                            if (mode60 != null) params.preferredDisplayModeId = mode60.modeId
+                            modes.minByOrNull { kotlin.math.abs(it.refreshRate - 60f) }
                         }
+                        params.preferredDisplayModeId = selectedMode?.modeId ?: 0
                     } else {
-                        params.preferredRefreshRate = if (enabled) 0f else 60f
+                        @Suppress("DEPRECATION")
+                        val supportedRates = display.supportedRefreshRates
+                        params.preferredRefreshRate = if (enabled) {
+                            supportedRates.maxOrNull() ?: 0f
+                        } else {
+                            supportedRates.minByOrNull { kotlin.math.abs(it - 60f) } ?: 60f
+                        }
                     }
                     window.attributes = params
                 }
         }
 
+        lifecycleScope.launch {
+            dataStore.data
+                .map { it[KeepScreenOn] ?: false }
+                .distinctUntilChanged()
+                .collectLatest { enabled ->
+                    if (enabled) {
+                        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    } else {
+                        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    }
+                }
+        }
+
         setContent {
-            DiyyMusicTheme(darkTheme = false) {
+            val preferences by dataStore.data.collectAsStateWithLifecycle(initialValue = emptyPreferences())
+            val systemDark = isSystemInDarkTheme()
+            val darkMode = preferences[DarkModeKey].toEnum(DarkMode.AUTO)
+            val darkTheme = when (darkMode) {
+                DarkMode.ON -> true
+                DarkMode.OFF -> false
+                DarkMode.AUTO -> systemDark
+            }
+            val pureBlack = preferences[PureBlackKey] ?: false
+
+            SideEffect {
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = !darkTheme
+                    isAppearanceLightNavigationBars = !darkTheme
+                }
+            }
+
+            DiyyMusicTheme(darkTheme = darkTheme, pureBlack = pureBlack) {
                 DiyyMusicRoot(
                     database = database,
+                    downloadUtil = downloadUtil,
                     playerConnection = playerConnectionSnapshot,
                     requestedRoute = requestedRoute,
                     onRequestedRouteConsumed = { requestedRoute = null },

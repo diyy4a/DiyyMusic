@@ -41,15 +41,23 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
+import androidx.media3.exoplayer.offline.Download
+import androidx.media3.exoplayer.offline.DownloadRequest
+import androidx.media3.exoplayer.offline.DownloadService
 import com.diyy.music.R
+import com.diyy.music.constants.HidePlayerThumbnailKey
 import com.diyy.music.db.entities.Song
 import com.diyy.music.models.MediaMetadata
+import com.diyy.music.playback.DownloadUtil
+import com.diyy.music.playback.ExoDownloadService
 import com.diyy.music.playback.PlayerConnection
 import com.diyy.music.ui.component.Artwork
 import com.diyy.music.ui.component.DiyyBrandMark
@@ -60,12 +68,16 @@ import com.diyy.music.ui.component.FigmaCircleButton
 import com.diyy.music.ui.component.LiquidGlassBox
 import com.diyy.music.ui.theme.DiyyRed
 import com.diyy.music.ui.theme.DiyySoftRed
+import com.diyy.music.utils.dataStore
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlin.math.max
 
 @Composable
 fun PlayerScreen(
     playerConnection: PlayerConnection?,
+    downloadUtil: DownloadUtil,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -85,6 +97,17 @@ fun PlayerScreen(
         ?: remember { mutableStateOf<Song?>(null) }
     val currentSong by songState
     val favorite = currentSong?.song?.liked ?: metadata?.liked ?: false
+    val context = LocalContext.current
+    val hideArtwork by context.dataStore.data
+        .map { preferences -> preferences[HidePlayerThumbnailKey] ?: false }
+        .collectAsStateWithLifecycle(initialValue = false)
+    val downloadFlow = remember(metadata?.id, downloadUtil) {
+        metadata?.id?.let(downloadUtil::getDownload) ?: flowOf<Download?>(null)
+    }
+    val download by downloadFlow.collectAsStateWithLifecycle(initialValue = null)
+    val isDownloaded = download?.state == Download.STATE_COMPLETED
+    val isDownloading = download?.state == Download.STATE_QUEUED || download?.state == Download.STATE_DOWNLOADING
+    val downloadProgress = download?.percentDownloaded?.takeIf { it >= 0f }
 
     var position by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(1L) }
@@ -94,6 +117,11 @@ fun PlayerScreen(
     var showQueue by remember { mutableStateOf(false) }
     var showLyrics by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
+
+    val toggleDownload: () -> Unit = {
+        metadata?.let { toggleSongDownload(context, downloadUtil, it, download) }
+        Unit
+    }
 
     LaunchedEffect(playerConnection, isPlaying, seeking, metadata?.id) {
         while (true) {
@@ -135,16 +163,19 @@ fun PlayerScreen(
                 )
             }
 
-            Spacer(Modifier.height(20.dp))
-            Artwork(
-                url = metadata?.thumbnailUrl,
-                modifier = Modifier
-                    .size(artworkSize)
-                    .align(Alignment.CenterHorizontally),
-                cornerRadius = 28,
-            )
-
-            Spacer(Modifier.height(22.dp))
+            if (!hideArtwork) {
+                Spacer(Modifier.height(20.dp))
+                Artwork(
+                    url = metadata?.thumbnailUrl,
+                    modifier = Modifier
+                        .size(artworkSize)
+                        .align(Alignment.CenterHorizontally),
+                    cornerRadius = 28,
+                )
+                Spacer(Modifier.height(22.dp))
+            } else {
+                Spacer(Modifier.height(12.dp))
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -166,6 +197,22 @@ fun PlayerScreen(
                     icon = if (favorite) R.drawable.favorite else R.drawable.favorite_border,
                     contentDescription = "Favorite",
                     onClick = { playerConnection?.toggleLike() },
+                    tint = DiyyRed,
+                    modifier = Modifier.size(48.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                FigmaCircleButton(
+                    icon = when {
+                        isDownloaded -> R.drawable.offline
+                        isDownloading -> R.drawable.close
+                        else -> R.drawable.download
+                    },
+                    contentDescription = when {
+                        isDownloaded -> "Remove download"
+                        isDownloading -> "Cancel download"
+                        else -> "Download song"
+                    },
+                    onClick = toggleDownload,
                     tint = DiyyRed,
                     modifier = Modifier.size(48.dp),
                 )
@@ -347,6 +394,10 @@ fun PlayerScreen(
     if (showMenu) {
         DiyyPlayerMenuSheet(
             isFavorite = favorite,
+            isDownloaded = isDownloaded,
+            isDownloading = isDownloading,
+            downloadProgress = downloadProgress,
+            onDownload = toggleDownload,
             onLyrics = { if (playerConnection != null && metadata != null) showLyrics = true },
             onQueue = { if (playerConnection != null) showQueue = true },
             onRadio = { playerConnection?.startRadioSeamlessly() },
@@ -355,6 +406,38 @@ fun PlayerScreen(
             onDismiss = { showMenu = false },
         )
     }
+}
+
+private fun toggleSongDownload(
+    context: android.content.Context,
+    downloadUtil: DownloadUtil,
+    metadata: MediaMetadata,
+    download: Download?,
+) {
+    if (download?.state == Download.STATE_COMPLETED ||
+        download?.state == Download.STATE_QUEUED ||
+        download?.state == Download.STATE_DOWNLOADING
+    ) {
+        DownloadService.sendRemoveDownload(
+            context,
+            ExoDownloadService::class.java,
+            metadata.id,
+            false,
+        )
+        return
+    }
+
+    downloadUtil.database.transaction { insert(metadata) }
+    val request = DownloadRequest.Builder(metadata.id, metadata.id.toUri())
+        .setCustomCacheKey(metadata.id)
+        .setData(metadata.title.toByteArray())
+        .build()
+    DownloadService.sendAddDownload(
+        context,
+        ExoDownloadService::class.java,
+        request,
+        false,
+    )
 }
 
 @Composable

@@ -308,6 +308,10 @@ private fun ColumnScope.LyricsMessage(message: String) {
 @Composable
 fun DiyyPlayerMenuSheet(
     isFavorite: Boolean,
+    isDownloaded: Boolean,
+    isDownloading: Boolean,
+    downloadProgress: Float?,
+    onDownload: () -> Unit,
     onLyrics: () -> Unit,
     onQueue: () -> Unit,
     onRadio: () -> Unit,
@@ -333,6 +337,25 @@ fun DiyyPlayerMenuSheet(
                 icon = R.drawable.more_horiz,
                 onDismiss = onDismiss,
                 horizontalPadding = 0.dp,
+            )
+            MenuAction(
+                icon = when {
+                    isDownloaded -> R.drawable.offline
+                    isDownloading -> R.drawable.close
+                    else -> R.drawable.download
+                },
+                title = when {
+                    isDownloaded -> "Remove download"
+                    isDownloading -> "Cancel download"
+                    else -> "Download song"
+                },
+                subtitle = when {
+                    isDownloaded -> "Stored for offline playback"
+                    isDownloading && downloadProgress != null -> "Downloading ${downloadProgress.toInt()}%"
+                    isDownloading -> "Download is in progress"
+                    else -> "Save this song for offline listening"
+                },
+                onClick = { onDownload(); onDismiss() },
             )
             MenuAction(
                 icon = R.drawable.lyrics,
@@ -452,36 +475,51 @@ private data class LyricLine(val timeMs: Long?, val text: String)
 private val lrcLineRegex = Regex("""((?:\[\d{1,3}:\d{2}(?:[.:]\d{1,3})?])+)(.*)""")
 private val lrcTimeRegex = Regex("""\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?]""")
 private val metadataTagRegex = Regex("""^\[[a-zA-Z]+:.*]$""")
+private val lyricAgentTagRegex = Regex("""\{(?:agent:[^}]+|bg)\}""")
+private val inlineLyricTimeRegex = Regex("""<\d{1,3}:\d{2}(?:[.:]\d{1,3})?>""")
 
 private fun parseLyrics(raw: String?): List<LyricLine> {
     if (raw.isNullOrBlank() || raw == LyricsEntity.LYRICS_NOT_FOUND) return emptyList()
-    val result = mutableListOf<LyricLine>()
-    raw.lineSequence().forEach { original ->
-        val line = original.trim().removePrefix("\uFEFF")
-        if (line.isBlank() || metadataTagRegex.matches(line)) return@forEach
-        val match = lrcLineRegex.matchEntire(line)
-        if (match == null) {
-            val clean = line.replace(Regex("""\{(?:agent:[^}]+|bg)}"""), "").trim()
-            if (clean.isNotBlank()) result += LyricLine(null, clean)
-        } else {
-            val text = match.groupValues[2]
-                .replace(Regex("""<\d{1,3}:\d{2}(?:[.:]\d{1,3})?>"""), "")
-                .replace(Regex("""\{(?:agent:[^}]+|bg)}"""), "")
-                .trim()
-            if (text.isBlank()) return@forEach
-            lrcTimeRegex.findAll(match.groupValues[1]).forEach { timeMatch ->
-                val minute = timeMatch.groupValues[1].toLongOrNull() ?: 0L
-                val second = timeMatch.groupValues[2].toLongOrNull() ?: 0L
-                val fractionText = timeMatch.groupValues[3]
-                val fraction = when (fractionText.length) {
-                    1 -> fractionText.toLongOrNull()?.times(100L) ?: 0L
-                    2 -> fractionText.toLongOrNull()?.times(10L) ?: 0L
-                    else -> fractionText.take(3).padEnd(3, '0').toLongOrNull() ?: 0L
+
+    return runCatching {
+        val result = mutableListOf<LyricLine>()
+        raw.lineSequence().forEach { original ->
+            val line = original.trim().removePrefix("\uFEFF")
+            if (line.isBlank() || metadataTagRegex.matches(line)) return@forEach
+
+            val match = lrcLineRegex.matchEntire(line)
+            if (match == null) {
+                val clean = line.replace(lyricAgentTagRegex, "").trim()
+                if (clean.isNotBlank()) result += LyricLine(null, clean)
+            } else {
+                val text = match.groupValues[2]
+                    .replace(inlineLyricTimeRegex, "")
+                    .replace(lyricAgentTagRegex, "")
+                    .trim()
+                if (text.isBlank()) return@forEach
+
+                lrcTimeRegex.findAll(match.groupValues[1]).forEach { timeMatch ->
+                    val minute = timeMatch.groupValues[1].toLongOrNull() ?: 0L
+                    val second = timeMatch.groupValues[2].toLongOrNull() ?: 0L
+                    val fractionText = timeMatch.groupValues[3]
+                    val fraction = when (fractionText.length) {
+                        1 -> fractionText.toLongOrNull()?.times(100L) ?: 0L
+                        2 -> fractionText.toLongOrNull()?.times(10L) ?: 0L
+                        else -> fractionText.take(3).padEnd(3, '0').toLongOrNull() ?: 0L
+                    }
+                    result += LyricLine((minute * 60_000L) + (second * 1_000L) + fraction, text)
                 }
-                result += LyricLine((minute * 60_000L) + (second * 1_000L) + fraction, text)
             }
         }
+        val hasTimed = result.any { it.timeMs != null }
+        if (hasTimed) result.sortedBy { it.timeMs ?: Long.MAX_VALUE } else result
+    }.getOrElse {
+        // A malformed provider tag must never be able to kill the player sheet.
+        raw.lineSequence()
+            .map { it.trim().removePrefix("\uFEFF") }
+            .filter { it.isNotBlank() && !metadataTagRegex.matches(it) }
+            .map { LyricLine(null, it.replace(lyricAgentTagRegex, "").trim()) }
+            .filter { it.text.isNotBlank() }
+            .toList()
     }
-    val hasTimed = result.any { it.timeMs != null }
-    return if (hasTimed) result.sortedBy { it.timeMs ?: Long.MAX_VALUE } else result
 }

@@ -1,31 +1,29 @@
 # DiyyMusic
 
-DiyyMusic is an open-source Android music client with a custom pink Liquid Glass interface and the proven playback, queue, library, lyrics, and streaming foundation derived from MetroList.
+DiyyMusic is an open-source Android music client with a custom pink Liquid Glass interface and the playback, queue, library, lyrics, download, and streaming foundation derived from MetroList.
 
 ## Current version
 
-**DiyyMusic 0.8.0** (`versionCode 13`)
+**DiyyMusic 0.8.1** (`versionCode 14`)
 
-## Implemented in the 0.8.0 source
+## Changes in 0.8.1
 
-- Online and local song actions now send to the real Media3/MetroList playback queue instead of mock UI state.
-- Search, Home recommendations, albums, playlists, artists, recent songs, favorites, and downloads can start playback.
-- Play/pause, previous, next, seek, volume, shuffle, repeat, queue selection, and retry playback are wired to `PlayerConnection`.
-- Favorite actions persist through the Room database, including newly started online songs that were not inserted yet.
-- Synced and plain lyrics can be fetched from the existing MetroList lyrics providers, displayed, auto-scrolled, and tapped to seek.
-- The top-right song menu opens working Lyrics, Queue, Start Radio, Retry Playback, and Favorite actions.
-- Profile stat cards open Playlists, Favorites, Downloads, and Recently Played directly.
-- Account & Token, Appearance, Playback & Audio, Connected Services, and About open their own feature pages directly.
-- Debug builds are unshrunk to avoid R8 removing playback/network provider behavior.
+- Home Recently Played now reads the same Room event history as the full history page, so valid recent songs no longer disappear from Home.
+- The lyrics parser no longer crashes on provider tags such as `{agent:...}` or malformed lyric text.
+- Added a native launch splash and an in-app logo loading screen to replace the blank white startup gap.
+- Added Download, Cancel Download, and Remove Download actions to the full player and song options sheet.
+- Added normal Google/YouTube Music login through the MetroList WebView flow. Manual cookie fields remain under Advanced.
+- Added Discord Connect, Disconnect, account status, avatar, and Rich Presence controls using the existing OAuth/RPC backend.
+- Expanded Player and Audio settings with streaming quality, crossfade duration, gapless handoff, queue persistence, autoplay, normalization, silence skipping, audio offload, Bluetooth resume, and related controls.
+- Expanded Appearance settings with System/Light/Dark theme selection, pure black mode, refresh rate, Liquid Glass outline, compact player artwork, and screenshot protection.
 - Universal APK builds include `arm64-v8a` and `armeabi-v7a`.
-- The v0.7 Liquid Glass UI, pink logo, modern icons, and clean sliders are retained.
 
 ## Build with Codemagic
 
-Push the project to the `main` branch. Codemagic runs **DiyyMusic v0.8.0 APK** and publishes:
+Push the project to the `main` branch. Codemagic runs **DiyyMusic v0.8.1 APK** and publishes:
 
 ```text
-DiyyMusic-v0.8.0-universal.apk
+DiyyMusic-v0.8.1-universal.apk
 ```
 
 ## Build locally

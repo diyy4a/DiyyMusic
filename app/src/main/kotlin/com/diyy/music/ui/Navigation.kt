@@ -17,6 +17,7 @@ enum class DiyyMainTab(
 
 object DiyyRoutes {
     const val PLAYER = "player"
+    const val LOGIN = "login"
     const val PROFILE = "profile"
     const val RADIO = "radio"
     const val SETTINGS = "settings"
