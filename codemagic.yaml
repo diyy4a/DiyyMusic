@@ -1,0 +1,75 @@
+workflows:
+  diyymusic-installable-apk:
+    name: DiyyMusic v0.8.3 APK
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+
+    environment:
+      java: 21
+      vars:
+        DIYYMUSIC_APP_NAME: "DiyyMusic"
+        DIYYMUSIC_APPLICATION_ID: "com.diyy.music"
+        DIYYMUSIC_ABI: "universal"
+
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
+        - $HOME/.gradle/wrapper
+        - $CM_BUILD_DIR/.gradle
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+      cancel_previous_builds: true
+
+    scripts:
+      - name: Prepare build environment
+        script: |
+          chmod +x gradlew
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
+          java -version
+          ./gradlew --version
+
+      - name: Prepare persistent debug keystore
+        script: |
+          set -e
+          KEYSTORE="app/persistent-debug.keystore"
+          ALIAS="androiddebugkey"
+
+          if [ -f "$KEYSTORE" ] && \
+             keytool -list -keystore "$KEYSTORE" -storepass android -alias "$ALIAS" >/dev/null 2>&1; then
+            echo "Valid persistent debug keystore already exists; reusing it."
+          else
+            echo "Persistent debug keystore is missing or invalid; creating a new one."
+            rm -f "$KEYSTORE"
+            keytool -genkeypair -v \
+              -keystore "$KEYSTORE" \
+              -storepass android \
+              -alias "$ALIAS" \
+              -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=DiyyMusic,C=ID"
+          fi
+
+      - name: Build installable FOSS APK
+        script: |
+          ./gradlew --no-daemon --max-workers=2 :app:assembleFossDebug
+
+      - name: Collect only the final APK
+        script: |
+          set -e
+          APK_PATH=$(find app/build/outputs/apk/foss/debug -type f -name "*.apk" | head -n 1)
+          if [ -z "$APK_PATH" ]; then
+            echo "APK was not generated"
+            exit 1
+          fi
+          mkdir -p build-artifacts
+          cp "$APK_PATH" "build-artifacts/DiyyMusic-v0.8.3-universal.apk"
+          ls -lh build-artifacts/
+
+    artifacts:
+      - build-artifacts/*.apk
