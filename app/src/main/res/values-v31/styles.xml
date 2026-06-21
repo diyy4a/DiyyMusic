@@ -5,7 +5,7 @@
 
 
     <style name="Theme.DiyyMusic.Splash" parent="Theme.DiyyMusic">
-        <item name="android:windowSplashScreenBackground">#FCFBFD</item>
+        <item name="android:windowSplashScreenBackground">@color/diyy_splash_background</item>
         <item name="android:windowSplashScreenAnimatedIcon">@drawable/diyy_brand_mark</item>
         <item name="android:windowSplashScreenAnimationDuration">500</item>
         <item name="android:windowBackground">@drawable/diyy_splash_screen</item>

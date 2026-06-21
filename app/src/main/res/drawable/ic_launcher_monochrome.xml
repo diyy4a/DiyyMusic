@@ -1,5 +1,4 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp" android:height="108dp"
-    android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#FF000000" android:pathData="M58,22V65.5C55.2,63.5 51.7,62.3 47.8,62.3C39.1,62.3 32,68.1 32,75.2C32,82.3 39.1,88.1 47.8,88.1C56.5,88.1 63.6,82.3 63.6,75.2V42.5C72.7,45.1 78.8,50.6 82.2,58.9C85.5,46.2 80.9,35 68.5,28.2C64.7,26.1 61.3,24.1 58,22Z"/>
-</vector>
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/diyy_launcher_monochrome" />
+</layer-list>

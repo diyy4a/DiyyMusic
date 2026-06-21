@@ -1,29 +1,29 @@
 # DiyyMusic
 
-DiyyMusic is an open-source Android music client with a custom pink Liquid Glass interface and the playback, queue, library, lyrics, download, and streaming foundation derived from MetroList.
+DiyyMusic is an open-source Android music client with a modern pink Liquid Glass interface and a MetroList-based playback foundation.
 
-## Current version
+## Current release
 
-**DiyyMusic 0.8.1** (`versionCode 14`)
+**DiyyMusic 0.8.2** (`versionCode 15`)
 
-## Changes in 0.8.1
+## Highlights
 
-- Home Recently Played now reads the same Room event history as the full history page, so valid recent songs no longer disappear from Home.
-- The lyrics parser no longer crashes on provider tags such as `{agent:...}` or malformed lyric text.
-- Added a native launch splash and an in-app logo loading screen to replace the blank white startup gap.
-- Added Download, Cancel Download, and Remove Download actions to the full player and song options sheet.
-- Added normal Google/YouTube Music login through the MetroList WebView flow. Manual cookie fields remain under Advanced.
-- Added Discord Connect, Disconnect, account status, avatar, and Rich Presence controls using the existing OAuth/RPC backend.
-- Expanded Player and Audio settings with streaming quality, crossfade duration, gapless handoff, queue persistence, autoplay, normalization, silence skipping, audio offload, Bluetooth resume, and related controls.
-- Expanded Appearance settings with System/Light/Dark theme selection, pure black mode, refresh rate, Liquid Glass outline, compact player artwork, and screenshot protection.
-- Universal APK builds include `arm64-v8a` and `armeabi-v7a`.
+- New approved DiyyMusic identity using a clean pink-red double musical note.
+- Updated launcher, round launcher, themed monochrome icon, in-app brand mark, and startup splash artwork.
+- Fixed Android resource linking for the splash background by using a proper color resource.
+- Added the missing default-language `discord_information` string required by Android resource packaging.
+- Recently Played on Home uses the same persistent history source as the full Recently Played screen.
+- Lyrics parsing no longer crashes the app when malformed metadata or unsupported tags are received.
+- Added native splash/loading presentation while the database and player connection initialize.
+- Added song download actions, expanded Player & Audio and Appearance settings, account login controls, and Discord connection controls.
+- Universal ARM builds include `arm64-v8a` and `armeabi-v7a`.
 
 ## Build with Codemagic
 
-Push the project to the `main` branch. Codemagic runs **DiyyMusic v0.8.1 APK** and publishes:
+Push the project to the `main` branch and run the **DiyyMusic v0.8.2 APK** workflow. The generated artifact is:
 
 ```text
-DiyyMusic-v0.8.1-universal.apk
+DiyyMusic-v0.8.2-universal.apk
 ```
 
 ## Build locally
@@ -43,4 +43,4 @@ app/build/outputs/apk/foss/debug/
 
 ## License
 
-DiyyMusic is distributed under the GNU General Public License v3.0. The project preserves the license and attribution obligations of its upstream open-source foundation.
+DiyyMusic is distributed under the GNU General Public License v3.0 and preserves the license and attribution requirements of its upstream open-source foundation.
