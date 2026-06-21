@@ -54,7 +54,7 @@ val compactBotBuild by tasks.registering {
         }
 
         val selectedApk = apks.maxBy { it.length() }
-        val compactApk = apkDirectory.resolve("DiyyMusic-v0.8.5.apk")
+        val compactApk = apkDirectory.resolve("DiyyMusic-v0.8.6.apk")
         if (selectedApk.canonicalFile != compactApk.canonicalFile) {
             selectedApk.copyTo(compactApk, overwrite = true)
         }

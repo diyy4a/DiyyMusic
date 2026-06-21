@@ -4,38 +4,31 @@ DiyyMusic is an open-source Android music client with a modern pink Liquid Glass
 
 ## Current release
 
-**DiyyMusic 0.8.5** (`versionCode 18`)
+**DiyyMusic 0.8.6** (`versionCode 19`)
 
-## What changed in 0.8.5
+## What changed in 0.8.6
 
-- Added real account avatar support to the Home profile button.
-- Added spring-based page transitions, press feedback, bottom-navigation motion, player artwork breathing, and an animated startup logo.
-- Rebuilt synced lyrics motion with smooth auto-scroll, active-line scale, opacity depth, animated color, and tap-to-seek.
-- Restyled media cards with a deeper Liquid Glass presentation.
-- Expanded Search with trending searches and recent-search shortcuts.
-- Rebuilt Discord Rich Presence settings with a connected profile card, reconnect and disconnect controls, a compact Presence section, and a collapsed Advanced section.
-- Reduced Discord Advanced settings to useful controls only: custom text, activity style, status, and two text templates.
-- Fixed the duplicate `playOnlineSection` declaration left in the previous source package.
-- Made the Discord application ID configurable through `DISCORD_APP_ID` in `local.properties` or the build environment.
+- Switched Discord OAuth and Rich Presence to the official DiyyMusic Discord application ID: `1518124516893528125`.
+- Added the same Discord application ID to the default Android build, Codemagic, and GitHub Actions environments.
+- Discord authorization should now display **DiyyMusic** instead of **MetroList**, provided the OAuth configuration in the Discord Developer Portal is valid.
+- Kept all UI, lyrics animation, playback, pull-to-refresh, and Discord settings improvements from version 0.8.5.
 
-## Discord branding
+## Discord configuration
 
-Discord shows the OAuth application name attached to the configured Discord application ID. The fallback ID still belongs to the upstream MetroList application, so its authorization page may display **MetroList**.
-
-To display **DiyyMusic**, create a Discord application named DiyyMusic in the Discord Developer Portal, configure the same OAuth redirect URI used by this project, then provide its numeric application ID:
+The project already uses this application ID by default:
 
 ```properties
-DISCORD_APP_ID=YOUR_DIYYMUSIC_DISCORD_APPLICATION_ID
+DISCORD_APP_ID=1518124516893528125
 ```
 
-For Codemagic, add `DISCORD_APP_ID` as an environment variable. This is controlled by Discord, not by a drawable or a text string inside the APK, because apparently branding needed its own bureaucracy.
+In the Discord Developer Portal, the application name, icon, OAuth scopes, and redirect configuration must belong to that same application. Discord controls the authorization-page branding, because naturally even a login logo needs paperwork.
 
 ## Build with Codemagic
 
-Push the project to the `main` branch and run the **DiyyMusic v0.8.5 APK** workflow. The generated artifact is:
+Push the project to the `main` branch and run the **DiyyMusic v0.8.6 APK** workflow. The generated artifact is:
 
 ```text
-DiyyMusic-v0.8.5-universal.apk
+DiyyMusic-v0.8.6-universal.apk
 ```
 
 ## Build locally

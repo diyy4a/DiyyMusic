@@ -102,8 +102,8 @@ android {
         applicationId = applicationIdOverride ?: baseApplicationId
         minSdk = 26
         targetSdk = 36
-        versionCode = 18
-        versionName = "0.8.5"
+        versionCode = 19
+        versionName = "0.8.6"
         resValue("string", "app_name", appNameOverride ?: "DiyyMusic")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -125,8 +125,8 @@ android {
         val discordAppId = (
             localProperties.getProperty("DISCORD_APP_ID")
                 ?: System.getenv("DISCORD_APP_ID")
-                ?: "1447278780795064401"
-        ).filter(Char::isDigit).ifBlank { "1447278780795064401" }
+                ?: "1518124516893528125"
+        ).filter(Char::isDigit).ifBlank { "1518124516893528125" }
 
         buildConfigField("String", "LASTFM_API_KEY", "\"$lastFmKey\"")
         buildConfigField("String", "LASTFM_SECRET", "\"$lastFmSecret\"")
