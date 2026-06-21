@@ -1,8 +1,6 @@
 package com.diyy.music.ui.screens
 
 import android.app.Activity
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.content.ContextWrapper
 import androidx.compose.animation.AnimatedVisibility
@@ -718,7 +716,7 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
     var discordName by rememberPreference(DiscordNameKey, "")
     var discordUsername by rememberPreference(DiscordUsernameKey, "")
     var discordAvatar by rememberPreference(DiscordAvatarKey, "")
-    var enabled by rememberPreference(EnableDiscordRPCKey, true)
+    var enabled by rememberPreference(EnableDiscordRPCKey, false)
     var button1Enabled by rememberPreference(DiscordButton1EnabledKey, true)
     var button2Enabled by rememberPreference(DiscordButton2EnabledKey, true)
     var advancedMode by rememberPreference(DiscordAdvancedModeKey, false)
@@ -747,20 +745,20 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
     }
 
     val connected = !accessToken.isNullOrBlank()
-    val socialSdkEnabled = BuildConfig.DISCORD_SOCIAL_SDK_ENABLED
-    val presenceReady = socialSdkEnabled && connectionStatus == DiscordRpcManager.Status.Connected
+    val presenceReady = connectionStatus == DiscordRpcManager.Status.Connected
+
+    LaunchedEffect(presenceReady) {
+        if (!presenceReady && enabled) enabled = false
+    }
     val status = when (connectionStatus) {
-        DiscordRpcManager.Status.Connected -> "Rich Presence connected"
-        DiscordRpcManager.Status.Linked -> when {
-            enabled -> "Account linked • Rich Presence waiting for SDK"
-            else -> "Account linked"
-        }
-        DiscordRpcManager.Status.Authorizing -> "Waiting for Discord authorization"
+        DiscordRpcManager.Status.Connected -> "Connected"
+        DiscordRpcManager.Status.Linked -> "Account linked"
+        DiscordRpcManager.Status.Authorizing -> "Connecting…"
         DiscordRpcManager.Status.Disconnected -> if (connected) "Account linked" else "Not connected"
     }
     val actionButtonsEnabled = button1Enabled || button2Enabled
     val discordErrorMessage = when (lastError) {
-        "discord_error_social_sdk_unavailable" -> "Discord account is linked, but Rich Presence needs approved Discord Social SDK access for this build."
+        "discord_error_social_sdk_unavailable" -> "Discord account is linked, but this build has no active Rich Presence transport."
         "discord_error_state_mismatch" -> "Discord returned an invalid authorization state. Close the browser and reconnect."
         "discord_error_invalid_scope" -> "Discord rejected one of the requested permissions. This build now requests only the standard identify scope by default."
         "discord_error_public_client_required" -> "Enable Public Client in Discord Developer Portal → OAuth2, then reconnect."
@@ -776,7 +774,7 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
         item {
             DiyyScreenHeader(
                 title = "Discord Rich Presence",
-                subtitle = "Link your account and manage Discord presence.",
+                subtitle = "Show what you’re listening to on Discord.",
                 onBack = onBack,
             )
         }
@@ -855,7 +853,7 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(18.dp),
                             ) {
-                                Text(if (socialSdkEnabled) "Reconnect" else "Refresh account")
+                                Text("Refresh account")
                             }
                             OutlinedButton(
                                 onClick = {
@@ -873,64 +871,29 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
                         }
                     }
 
-                    Text(
-                        text = "This connection is used only by DiyyMusic. Account linking uses Discord’s standard identify permission.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-
-                    if (connected && !presenceReady) {
+                    if (connected) {
                         Surface(
                             shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.52f),
+                            color = if (presenceReady) {
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.52f)
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)
+                            },
                         ) {
                             Text(
-                                text = if (socialSdkEnabled) {
-                                    "Your Discord account is linked, but the Rich Presence transport is not ready."
+                                text = if (presenceReady) {
+                                    "Rich Presence is ready and will follow the current track."
                                 } else {
-                                    "Rich Presence can be enabled as a preference now, but Discord will only publish it after the official Social SDK is included and approved for this application."
+                                    "Account linked. Rich Presence transport is not available in this Android build."
                                 },
                                 modifier = Modifier.padding(12.dp),
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
-                    }
-
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Text(
-                                text = "OAuth redirect URI",
-                                fontWeight = FontWeight.SemiBold,
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                            Text(
-                                text = BuildConfig.DISCORD_REDIRECT_URI,
-                                color = MaterialTheme.colorScheme.primary,
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                            Text(
-                                text = "Register this exact address and enable Public Client in Discord Developer Portal → OAuth2.",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                            TextButton(
-                                onClick = {
-                                    val clipboard = context.getSystemService(ClipboardManager::class.java)
-                                    clipboard?.setPrimaryClip(
-                                        ClipData.newPlainText("DiyyMusic Discord redirect", BuildConfig.DISCORD_REDIRECT_URI),
-                                    )
+                                color = if (presenceReady) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
                                 },
-                                modifier = Modifier.align(Alignment.End),
-                            ) {
-                                Text("Copy redirect URI")
-                            }
+                                style = MaterialTheme.typography.bodySmall,
+                            )
                         }
                     }
 
@@ -953,11 +916,10 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
                     subtitle = when {
                         !connected -> "Link a Discord account first."
                         presenceReady -> "Share the current track on Discord."
-                        enabled -> "Enabled locally; waiting for the official Discord Social SDK transport."
-                        else -> "Save the preference now and publish automatically when the SDK transport is available."
+                        else -> "Unavailable until the Discord presence transport is included."
                     },
-                    checked = enabled,
-                    enabled = connected,
+                    checked = enabled && presenceReady,
+                    enabled = connected && presenceReady,
                     onCheckedChange = {
                         enabled = it
                         DiscordRpcManager.notifySettingsChanged()
@@ -968,7 +930,7 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
                     title = "Show action buttons",
                     subtitle = "Show Listen and DiyyMusic buttons on the activity.",
                     checked = actionButtonsEnabled,
-                    enabled = connected && enabled,
+                    enabled = connected && presenceReady && enabled,
                     onCheckedChange = {
                         button1Enabled = it
                         button2Enabled = it
@@ -1017,7 +979,7 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
                             title = "Custom presence text",
                             subtitle = "Use templates instead of the default song and artist layout.",
                             checked = advancedMode,
-                            enabled = connected && enabled,
+                            enabled = connected && presenceReady && enabled,
                             onCheckedChange = {
                                 advancedMode = it
                                 DiscordRpcManager.notifySettingsChanged()

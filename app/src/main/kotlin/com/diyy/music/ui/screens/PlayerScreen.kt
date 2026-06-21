@@ -127,26 +127,27 @@ fun PlayerScreen(
     }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val compact = maxHeight < 760.dp
-        val tiny = maxHeight < 620.dp
-        val artworkSize = when {
-            hideArtwork -> 0.dp
-            tiny -> (maxWidth - 150.dp).coerceAtMost(158.dp)
-            compact -> (maxWidth - 122.dp).coerceAtMost(204.dp)
-            else -> (maxWidth - 112.dp).coerceAtMost(238.dp)
+        val tiny = maxHeight < 650.dp
+        val compact = maxHeight < 770.dp
+        val horizontalPadding = if (tiny) 18.dp else 22.dp
+        val lyricsHeight = when {
+            tiny -> 104.dp
+            compact -> 116.dp
+            maxHeight < 880.dp -> 128.dp
+            else -> 138.dp
         }
 
         if (ui.backgroundGlow) {
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .padding(top = if (compact) 68.dp else 88.dp)
-                    .size(if (compact) 280.dp else 340.dp)
+                    .padding(top = if (compact) 76.dp else 98.dp)
+                    .size(if (compact) 300.dp else 380.dp)
                     .background(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                DiyyRed.copy(alpha = 0.11f * ui.accentStrength),
-                                DiyyRed.copy(alpha = 0.03f * ui.accentStrength),
+                                DiyyRed.copy(alpha = 0.10f * ui.accentStrength),
+                                DiyyRed.copy(alpha = 0.025f * ui.accentStrength),
                                 Color.Transparent,
                             ),
                         ),
@@ -158,7 +159,7 @@ fun PlayerScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 9.dp),
+                .padding(horizontal = horizontalPadding, vertical = if (tiny) 6.dp else 9.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(
@@ -180,29 +181,43 @@ fun PlayerScreen(
                 )
             }
 
-            Spacer(Modifier.height(if (tiny) 7.dp else 10.dp))
+            Spacer(Modifier.height(if (tiny) 6.dp else 10.dp))
 
             if (!hideArtwork) {
-                AnimatedContent(
-                    targetState = metadata?.id,
-                    transitionSpec = {
-                        (fadeIn(tween(180)) + scaleIn(tween(220), initialScale = 0.99f)) togetherWith
-                            (fadeOut(tween(120)) + scaleOut(tween(150), targetScale = 1.01f))
-                    },
-                    label = "playerArtwork",
+                BoxWithConstraints(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Artwork(
-                        url = metadata?.thumbnailUrl,
-                        modifier = Modifier.size(artworkSize),
-                        cornerRadius = 26,
+                    val availableArtwork = minOf(maxWidth - 30.dp, maxHeight - 4.dp)
+                    val artworkSize = availableArtwork.coerceIn(
+                        minimumValue = if (tiny) 154.dp else 178.dp,
+                        maximumValue = if (compact) 286.dp else 336.dp,
                     )
+                    AnimatedContent(
+                        targetState = metadata?.id,
+                        transitionSpec = {
+                            (fadeIn(tween(190)) + scaleIn(tween(230), initialScale = 0.985f)) togetherWith
+                                (fadeOut(tween(130)) + scaleOut(tween(170), targetScale = 1.015f))
+                        },
+                        label = "playerArtwork",
+                    ) {
+                        Artwork(
+                            url = metadata?.thumbnailUrl,
+                            modifier = Modifier.size(artworkSize),
+                            cornerRadius = 28,
+                        )
+                    }
                 }
-                Spacer(Modifier.height(if (tiny) 9.dp else 13.dp))
+                Spacer(Modifier.height(if (tiny) 4.dp else 7.dp))
+            } else {
+                Spacer(Modifier.height(if (tiny) 6.dp else 10.dp))
             }
 
             Text(
                 text = metadata?.title ?: "Not Playing",
-                style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
+                style = if (tiny) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -219,63 +234,51 @@ fun PlayerScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Spacer(Modifier.height(if (tiny) 5.dp else 7.dp))
-            LiquidGlassBox(
+            Spacer(Modifier.height(if (tiny) 5.dp else 8.dp))
+            Row(
                 modifier = Modifier
-                    .fillMaxWidth(0.66f)
+                    .fillMaxWidth()
                     .height(if (tiny) 40.dp else 44.dp),
-                shape = RoundedCornerShape(20.dp),
-                elevation = 3.dp,
+                horizontalArrangement = Arrangement.spacedBy(9.dp),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    CompactPlayerAction(
-                        icon = if (favorite) R.drawable.favorite else R.drawable.favorite_border,
-                        contentDescription = "Favorite",
-                        active = favorite,
-                        onClick = { playerConnection?.toggleLike() },
-                    )
-                    CompactPlayerAction(
-                        icon = R.drawable.fullscreen,
-                        contentDescription = "Full lyrics",
-                        active = showLyrics,
-                        onClick = { if (metadata != null && playerConnection != null) showLyrics = true },
-                    )
-                    CompactPlayerAction(
-                        icon = R.drawable.queue_music,
-                        contentDescription = "Queue",
-                        active = showQueue,
-                        onClick = { if (playerConnection != null) showQueue = true },
-                    )
-                }
+                PlayerActionPill(
+                    icon = if (favorite) R.drawable.favorite else R.drawable.favorite_border,
+                    label = if (favorite) "Liked" else "Favorite",
+                    active = favorite,
+                    modifier = Modifier.weight(1f),
+                    onClick = { playerConnection?.toggleLike() },
+                )
+                PlayerActionPill(
+                    icon = R.drawable.lyrics,
+                    label = "Lyrics",
+                    active = showLyrics,
+                    modifier = Modifier.weight(1f),
+                    onClick = { if (metadata != null && playerConnection != null) showLyrics = true },
+                )
+                PlayerActionPill(
+                    icon = R.drawable.queue_music,
+                    label = "Queue",
+                    active = showQueue,
+                    modifier = Modifier.weight(1f),
+                    onClick = { if (playerConnection != null) showQueue = true },
+                )
             }
 
-            Spacer(Modifier.height(if (tiny) 6.dp else 8.dp))
+            Spacer(Modifier.height(if (tiny) 6.dp else 9.dp))
             if (playerConnection != null) {
                 DiyyInlineLyricsPreview(
                     playerConnection = playerConnection,
                     metadata = metadata,
-                    onExpand = {
-                        if (metadata != null) showLyrics = true
-                    },
+                    onExpand = { if (metadata != null) showLyrics = true },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(
-                            when {
-                                tiny -> 108.dp
-                                compact -> 124.dp
-                                else -> 136.dp
-                            },
-                        ),
+                        .height(lyricsHeight),
                 )
             } else {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(if (tiny) 108.dp else 124.dp),
+                        .height(lyricsHeight),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
@@ -285,78 +288,18 @@ fun PlayerScreen(
                 }
             }
 
-            Spacer(Modifier.height(if (tiny) 5.dp else 7.dp))
-            PlayerProgressSection(
+            Spacer(Modifier.height(if (tiny) 6.dp else 8.dp))
+
+            PlayerControlsDock(
                 playerConnection = playerConnection,
                 metadata = metadata,
                 isPlaying = isPlaying,
+                shuffleEnabled = shuffleEnabled,
+                repeatMode = repeatMode,
+                tiny = tiny,
             )
 
-            Spacer(Modifier.height(if (tiny) 1.dp else 3.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                SimplePlayerButton(
-                    icon = if (shuffleEnabled) R.drawable.shuffle_on else R.drawable.shuffle,
-                    contentDescription = "Shuffle",
-                    active = shuffleEnabled,
-                    size = 40,
-                    onClick = { playerConnection?.toggleShuffle() },
-                )
-                SimplePlayerButton(
-                    icon = R.drawable.skip_previous,
-                    contentDescription = "Previous",
-                    size = 48,
-                    onClick = { playerConnection?.seekToPrevious() },
-                )
-                Surface(
-                    modifier = Modifier.size(if (tiny) 60.dp else 66.dp),
-                    shape = CircleShape,
-                    color = DiyyRed,
-                    tonalElevation = 0.dp,
-                    shadowElevation = if (ui.backgroundGlow) 5.dp else 1.dp,
-                    onClick = { playerConnection?.togglePlayPause() },
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        AnimatedContent(
-                            targetState = isPlaying,
-                            transitionSpec = {
-                                (fadeIn(tween(110)) + scaleIn(tween(140), initialScale = 0.88f)) togetherWith
-                                    (fadeOut(tween(90)) + scaleOut(tween(110), targetScale = 0.88f))
-                            },
-                            label = "playPauseIcon",
-                        ) { playing ->
-                            Icon(
-                                painter = painterResource(if (playing) R.drawable.pause else R.drawable.play),
-                                contentDescription = if (playing) "Pause" else "Play",
-                                tint = Color.White,
-                                modifier = Modifier.size(30.dp),
-                            )
-                        }
-                    }
-                }
-                SimplePlayerButton(
-                    icon = R.drawable.skip_next,
-                    contentDescription = "Next",
-                    size = 48,
-                    onClick = { playerConnection?.seekToNext() },
-                )
-                SimplePlayerButton(
-                    icon = when (repeatMode) {
-                        Player.REPEAT_MODE_ONE -> R.drawable.repeat_one_on
-                        Player.REPEAT_MODE_ALL -> R.drawable.repeat_on
-                        else -> R.drawable.repeat
-                    },
-                    contentDescription = "Repeat",
-                    active = repeatMode != Player.REPEAT_MODE_OFF,
-                    size = 40,
-                    onClick = { playerConnection?.cycleRepeatMode() },
-                )
-            }
-
-            Spacer(Modifier.height(3.dp))
+            Spacer(Modifier.height(if (tiny) 2.dp else 5.dp))
         }
     }
 
@@ -387,6 +330,137 @@ fun PlayerScreen(
             onToggleFavorite = { playerConnection?.toggleLike() },
             onDismiss = { showMenu = false },
         )
+    }
+}
+
+@Composable
+private fun PlayerActionPill(
+    icon: Int,
+    label: String,
+    active: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    LiquidGlassBox(
+        modifier = modifier.fillMaxSize(),
+        shape = RoundedCornerShape(20.dp),
+        elevation = if (active) 6.dp else 3.dp,
+        onClick = onClick,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = painterResource(icon),
+                contentDescription = label,
+                tint = if (active) DiyyRed else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(19.dp),
+            )
+            Spacer(Modifier.size(6.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = if (active) DiyyRed else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlayerControlsDock(
+    playerConnection: PlayerConnection?,
+    metadata: MediaMetadata?,
+    isPlaying: Boolean,
+    shuffleEnabled: Boolean,
+    repeatMode: Int,
+    tiny: Boolean,
+) {
+    val ui = LocalDiyyUiConfig.current
+    LiquidGlassBox(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        elevation = 8.dp,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = if (tiny) 9.dp else 12.dp),
+        ) {
+            PlayerProgressSection(
+                playerConnection = playerConnection,
+                metadata = metadata,
+                isPlaying = isPlaying,
+            )
+            Spacer(Modifier.height(if (tiny) 1.dp else 4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SimplePlayerButton(
+                    icon = if (shuffleEnabled) R.drawable.shuffle_on else R.drawable.shuffle,
+                    contentDescription = "Shuffle",
+                    active = shuffleEnabled,
+                    size = if (tiny) 36 else 40,
+                    onClick = { playerConnection?.toggleShuffle() },
+                )
+                SimplePlayerButton(
+                    icon = R.drawable.skip_previous,
+                    contentDescription = "Previous",
+                    size = if (tiny) 44 else 48,
+                    onClick = { playerConnection?.seekToPrevious() },
+                )
+                Surface(
+                    modifier = Modifier.size(if (tiny) 58.dp else 66.dp),
+                    shape = CircleShape,
+                    color = DiyyRed,
+                    tonalElevation = 0.dp,
+                    shadowElevation = if (ui.backgroundGlow) 6.dp else 1.dp,
+                    onClick = { playerConnection?.togglePlayPause() },
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        AnimatedContent(
+                            targetState = isPlaying,
+                            transitionSpec = {
+                                (fadeIn(tween(110)) + scaleIn(tween(140), initialScale = 0.88f)) togetherWith
+                                    (fadeOut(tween(90)) + scaleOut(tween(110), targetScale = 0.88f))
+                            },
+                            label = "playPauseIcon",
+                        ) { playing ->
+                            Icon(
+                                painter = painterResource(if (playing) R.drawable.pause else R.drawable.play),
+                                contentDescription = if (playing) "Pause" else "Play",
+                                tint = Color.White,
+                                modifier = Modifier.size(if (tiny) 27.dp else 30.dp),
+                            )
+                        }
+                    }
+                }
+                SimplePlayerButton(
+                    icon = R.drawable.skip_next,
+                    contentDescription = "Next",
+                    size = if (tiny) 44 else 48,
+                    onClick = { playerConnection?.seekToNext() },
+                )
+                SimplePlayerButton(
+                    icon = when (repeatMode) {
+                        Player.REPEAT_MODE_ONE -> R.drawable.repeat_one_on
+                        Player.REPEAT_MODE_ALL -> R.drawable.repeat_on
+                        else -> R.drawable.repeat
+                    },
+                    contentDescription = "Repeat",
+                    active = repeatMode != Player.REPEAT_MODE_OFF,
+                    size = if (tiny) 36 else 40,
+                    onClick = { playerConnection?.cycleRepeatMode() },
+                )
+            }
+        }
     }
 }
 

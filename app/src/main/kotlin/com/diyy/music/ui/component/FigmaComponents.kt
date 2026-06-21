@@ -730,6 +730,7 @@ fun FigmaMediaGridItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     circular: Boolean = false,
+    showPlayButton: Boolean = true,
 ) {
     LiquidGlassBox(
         modifier = modifier,
@@ -747,20 +748,22 @@ fun FigmaMediaGridItem(
                         .then(if (circular) Modifier.clip(CircleShape) else Modifier),
                     cornerRadius = if (circular) 100 else 18,
                 )
-                Surface(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .align(Alignment.BottomEnd)
-                        .padding(3.dp),
-                    shape = CircleShape,
-                    color = DiyyRed,
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.play),
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.padding(9.dp),
-                    )
+                if (showPlayButton) {
+                    Surface(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .align(Alignment.BottomEnd)
+                            .padding(3.dp),
+                        shape = CircleShape,
+                        color = DiyyRed,
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.play),
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.padding(9.dp),
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(9.dp))

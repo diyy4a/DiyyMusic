@@ -63,11 +63,15 @@ import com.diyy.music.R
 import com.diyy.music.extensions.toMediaItem
 import com.diyy.music.playback.PlayerConnection
 import com.diyy.music.playback.queues.ListQueue
+import com.diyy.music.ui.component.Artwork
 import com.diyy.music.ui.component.DiyyScreenHeader
 import com.diyy.music.ui.component.EmptyFigmaState
+import com.diyy.music.ui.component.FigmaMediaGridItem
 import com.diyy.music.ui.component.FigmaMediaRow
 import com.diyy.music.ui.component.FigmaSectionHeader
 import com.diyy.music.ui.component.LiquidGlassBox
+import com.diyy.music.ui.displayArtistName
+import com.diyy.music.ui.displaySubtitle
 import com.diyy.music.ui.theme.DiyyRed
 import com.diyy.music.viewmodels.OnlineSearchSuggestionViewModel
 import java.util.Locale
@@ -188,6 +192,32 @@ fun SearchScreen(
         state.items
     }
     val playableResults = displayResults.filterIsInstance<SongItem>()
+    val artistResults = displayResults.filterIsInstance<ArtistItem>()
+    val albumResults = displayResults.filterIsInstance<AlbumItem>()
+    val playlistResults = displayResults.filterIsInstance<PlaylistItem>()
+    val normalizedQuery = submittedQuery.trim().lowercase()
+    val matchedArtist = artistResults.firstOrNull {
+        it.title.trim().lowercase() == normalizedQuery
+    } ?: artistResults.firstOrNull()
+    val topResult: YTItem? = matchedArtist
+        ?: playableResults.firstOrNull()
+        ?: albumResults.firstOrNull()
+        ?: playlistResults.firstOrNull()
+    val fallbackArtistName = matchedArtist?.title
+    val openResult: (YTItem) -> Unit = { item ->
+        when (item) {
+            is SongItem -> playSearchSongs(
+                connection = playerConnection,
+                songs = playableResults,
+                startIndex = playableResults.indexOfFirst { it.id == item.id },
+                title = submittedQuery.ifBlank { "Search" },
+            )
+            is AlbumItem -> onOpenCollection("online_album:${item.id}")
+            is ArtistItem -> onOpenCollection("online_artist:${item.id}")
+            is PlaylistItem -> onOpenCollection("online_playlist:${item.id}")
+            else -> Unit
+        }
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -357,27 +387,94 @@ fun SearchScreen(
             }
 
             if (displayResults.isNotEmpty()) {
-                item { FigmaSectionHeader(title = "Top Results") }
-                items(displayResults, key = { it.id }) { item ->
-                    FigmaMediaRow(
-                        title = item.title,
-                        subtitle = searchSubtitle(item),
-                        imageUrl = item.thumbnail,
-                        onClick = {
-                            when (item) {
-                                is SongItem -> playSearchSongs(
-                                    connection = playerConnection,
-                                    songs = playableResults,
-                                    startIndex = playableResults.indexOfFirst { it.id == item.id },
-                                    title = submittedQuery.ifBlank { "Search" },
+                topResult?.let { result ->
+                    item { FigmaSectionHeader(title = "Top Result") }
+                    item {
+                        if (result is ArtistItem) {
+                            SearchArtistResultCard(
+                                artist = result,
+                                onClick = { openResult(result) },
+                            )
+                        } else {
+                            FigmaMediaRow(
+                                title = result.title,
+                                subtitle = result.displaySubtitle(fallbackArtistName),
+                                imageUrl = result.thumbnail,
+                                onClick = { openResult(result) },
+                            )
+                        }
+                    }
+                }
+
+                if (playableResults.isNotEmpty()) {
+                    item {
+                        FigmaSectionHeader(
+                            title = "Songs",
+                            actionText = if (playableResults.size > 6) "See All" else null,
+                        )
+                    }
+                    items(playableResults.take(6), key = { "song-${it.id}" }) { song ->
+                        FigmaMediaRow(
+                            title = song.title,
+                            subtitle = song.displayArtistName(fallbackArtistName),
+                            imageUrl = song.thumbnail,
+                            onClick = { openResult(song) },
+                        )
+                    }
+                }
+
+                if (artistResults.isNotEmpty()) {
+                    item { FigmaSectionHeader(title = "Artists") }
+                    item {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 18.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            items(artistResults.take(8), key = { "artist-${it.id}" }) { artist ->
+                                FigmaMediaGridItem(
+                                    title = artist.title,
+                                    subtitle = "Artist",
+                                    imageUrl = artist.thumbnail,
+                                    circular = true,
+                                    showPlayButton = false,
+                                    onClick = { openResult(artist) },
+                                    modifier = Modifier.fillParentMaxWidth(0.34f),
                                 )
-                                is AlbumItem -> onOpenCollection("online_album:${item.id}")
-                                is ArtistItem -> onOpenCollection("online_artist:${item.id}")
-                                is PlaylistItem -> onOpenCollection("online_playlist:${item.id}")
-                                else -> Unit
                             }
-                        },
-                    )
+                        }
+                    }
+                }
+
+                if (albumResults.isNotEmpty()) {
+                    item { FigmaSectionHeader(title = "Albums") }
+                    item {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 18.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            items(albumResults.take(8), key = { "album-${it.id}" }) { album ->
+                                FigmaMediaGridItem(
+                                    title = album.title,
+                                    subtitle = album.displaySubtitle(fallbackArtistName),
+                                    imageUrl = album.thumbnail,
+                                    onClick = { openResult(album) },
+                                    modifier = Modifier.fillParentMaxWidth(0.38f),
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (playlistResults.isNotEmpty()) {
+                    item { FigmaSectionHeader(title = "Playlists") }
+                    items(playlistResults.take(4), key = { "playlist-${it.id}" }) { playlist ->
+                        FigmaMediaRow(
+                            title = playlist.title,
+                            subtitle = playlist.displaySubtitle(),
+                            imageUrl = playlist.thumbnail,
+                            onClick = { openResult(playlist) },
+                        )
+                    }
                 }
             } else if (isSearching) {
                 item {
@@ -396,6 +493,56 @@ fun SearchScreen(
                     )
                 }
             }
+        }
+    }
+}
+
+
+@Composable
+private fun SearchArtistResultCard(
+    artist: ArtistItem,
+    onClick: () -> Unit,
+) {
+    LiquidGlassBox(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(24.dp),
+        elevation = 6.dp,
+        onClick = onClick,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Artwork(
+                url = artist.thumbnail,
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape),
+                cornerRadius = 100,
+            )
+            Spacer(Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = artist.title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                )
+                Text(
+                    text = "Artist",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Icon(
+                painter = painterResource(R.drawable.navigate_next),
+                contentDescription = "Open artist",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -589,10 +736,3 @@ private fun SuggestionRow(
     }
 }
 
-private fun searchSubtitle(item: YTItem): String? = when (item) {
-    is SongItem -> item.artists.joinToString { it.name }
-    is AlbumItem -> item.artists.orEmpty().joinToString { it.name }
-    is ArtistItem -> "Artist"
-    is PlaylistItem -> item.author?.name ?: item.songCountText
-    else -> null
-}

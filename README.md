@@ -4,47 +4,45 @@ DiyyMusic is an open-source Android music client with a modern pink interface an
 
 ## Current release
 
-**DiyyMusic 0.9.5** (`versionCode 26`)
+**DiyyMusic 0.9.6** (`versionCode 27`)
 
-## What changed in 0.9.5
+## What changed in 0.9.6
 
-- Reduced the inline lyrics card so it no longer dominates the player.
-- Moved favorite, full lyrics, and queue into a compact action rail below the song information instead of leaving them at the very bottom.
-- Replaced the inline lyric block swap with a continuously scrolling lyric list.
-- Smoothed full-screen lyric scrolling and removed the active-line scale jump that made the text feel stiff.
-- Kept playback controls at the bottom, directly after the progress bar.
-- Discord Rich Presence can now be toggled as a saved preference after the account is linked. Actual publishing still requires the official Discord Social SDK and approved presence scopes.
+- Rebuilt the Now Playing layout so the artwork uses the available height instead of leaving a dead empty block.
+- Grouped favorite, lyrics, and queue directly below the song information.
+- Reorganized progress and playback controls into one balanced bottom dock.
+- Removed karaoke-style word filling from inline and full lyrics.
+- Added a small timed progress indicator only for detected instrumental gaps.
+- Smoothed lyric tracking and scrolling while keeping tap-to-seek in full lyrics.
+- Reworked Search into separate Top Result, Songs, Artists, Albums, and Playlists sections.
+- Sanitized generic creator labels such as `Song`, `Video`, and `Music` so they are not displayed as artist names.
+- Loaded the signed-in account avatar in the Library header.
+- Removed the OAuth redirect instructions from the Discord screen and stopped presenting a saved toggle as a working mobile Rich Presence connection.
 
-## Discord branding
+## Discord account linking and Rich Presence
 
-The Discord application ID bundled for DiyyMusic is:
+The bundled Discord application ID is:
 
 ```text
 1518124516893528125
 ```
 
-Enable **Public Client** in **Discord Developer Portal → OAuth2**, then register this exact redirect under **Redirects**:
+Account linking uses the standard OAuth `identify` scope and this callback:
 
 ```text
 http://127.0.0.1:6463/callback
 ```
 
-The value can be overridden with `DISCORD_REDIRECT_URI` in `local.properties` or the build environment, but the value used by the APK and the value registered in Discord must remain identical.
+Enable **Public Client** and register the exact callback in the Discord Developer Portal.
 
-By default, Discord OAuth requests only `identify`, so account linking works without restricted partner scopes. Actual mobile Rich Presence requires the official Discord Social SDK and approved presence scopes. Approved builds can set:
-
-```properties
-DISCORD_SOCIAL_SDK_ENABLED=true
-```
-
-Do not enable it on an unapproved Discord application, because Discord will reject the restricted scope.
+Android activity publishing is intentionally disabled unless an approved Discord Social SDK transport is integrated into the build. OAuth account linking alone cannot publish the currently playing song. See `DISCORD-SETUP.md`.
 
 ## Build with Codemagic
 
-Push the project to the `main` branch and run the **DiyyMusic v0.9.5 APK** workflow. The generated artifact is:
+Push the project to the `main` branch and run the **DiyyMusic v0.9.6 APK** workflow. The generated artifact is:
 
 ```text
-DiyyMusic-v0.9.5-universal.apk
+DiyyMusic-v0.9.6-universal.apk
 ```
 
 ## Build locally

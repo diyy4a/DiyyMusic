@@ -42,6 +42,7 @@ import com.diyy.music.ui.component.FigmaMediaGridItem
 import com.diyy.music.ui.component.FigmaMediaRow
 import com.diyy.music.ui.component.FigmaPromoCard
 import com.diyy.music.ui.component.FigmaSectionHeader
+import com.diyy.music.ui.displaySubtitle
 import com.diyy.music.ui.theme.DiyyRed
 import com.diyy.music.viewmodels.HomeViewModel
 import java.util.Calendar
@@ -290,13 +291,7 @@ private fun itemTitle(item: YTItem): String = when (item) {
     else -> item.id
 }
 
-private fun itemSubtitle(item: YTItem): String? = when (item) {
-    is SongItem -> item.artists.joinToString { it.name }
-    is AlbumItem -> item.artists.orEmpty().joinToString { it.name }
-    is ArtistItem -> "Artist"
-    is PlaylistItem -> item.author?.name
-    else -> null
-}
+private fun itemSubtitle(item: YTItem): String? = item.displaySubtitle()
 
 private fun itemThumbnail(item: YTItem): String? = when (item) {
     is SongItem -> item.thumbnail

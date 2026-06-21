@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.diyy.music.R
 import com.diyy.music.db.MusicDatabase
@@ -28,6 +29,7 @@ import com.diyy.music.ui.component.FigmaMediaGridItem
 import com.diyy.music.ui.component.FigmaMediaRow
 import com.diyy.music.ui.component.FigmaSectionHeader
 import com.diyy.music.ui.component.FigmaSettingsRow
+import com.diyy.music.viewmodels.HomeViewModel
 
 @Composable
 fun LibraryScreen(
@@ -38,6 +40,7 @@ fun LibraryScreen(
     onOpenCollection: (String) -> Unit,
     onOpenDisplayOptions: () -> Unit,
     modifier: Modifier = Modifier,
+    homeViewModel: HomeViewModel = hiltViewModel(),
 ) {
     val songs by database.songsByCreateDateAsc().collectAsStateWithLifecycle(initialValue = emptyList())
     val albums by database.albumsByCreateDateAsc().collectAsStateWithLifecycle(initialValue = emptyList())
@@ -45,6 +48,7 @@ fun LibraryScreen(
     val downloadedSongs by database.downloadedSongsByCreateDateAsc().collectAsStateWithLifecycle(initialValue = emptyList())
     val artists by database.artistsByCreateDateAsc().collectAsStateWithLifecycle(initialValue = emptyList())
     val events by database.events().collectAsStateWithLifecycle(initialValue = emptyList())
+    val profileImageUrl by homeViewModel.accountImageUrl.collectAsStateWithLifecycle()
 
     val recentSongs = songs.asReversed().take(12)
     val recentlyPlayed = events
@@ -61,6 +65,7 @@ fun LibraryScreen(
                 title = "Library",
                 onHistory = onOpenHistory,
                 onProfile = onOpenProfile,
+                profileImageUrl = profileImageUrl,
             )
         }
 

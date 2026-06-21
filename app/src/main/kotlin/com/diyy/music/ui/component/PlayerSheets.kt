@@ -2,6 +2,7 @@ package com.diyy.music.ui.component
 
 import android.os.SystemClock
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -29,6 +30,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
@@ -50,14 +52,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -222,6 +220,7 @@ fun DiyyInlineLyricsPreview(
     val lyricsOffsetMs = currentSong?.song?.lyricsOffset?.toLong() ?: 0L
     var playbackPositionMs by remember(metadata?.id) { mutableLongStateOf(0L) }
     var activeIndex by remember(lines) { mutableIntStateOf(if (hasSyncedLyrics) 0 else -1) }
+    val instrumentalWindow = currentInstrumentalWindow(lines, activeIndex, playbackPositionMs)
 
     LaunchedEffect(metadata?.id, activeLyrics?.id) {
         val current = metadata ?: return@LaunchedEffect
@@ -257,10 +256,13 @@ fun DiyyInlineLyricsPreview(
             playerConnection.player.currentPosition.coerceAtLeast(0L)
         }.getOrDefault(0L)
         var lastPlayerUpdateAt = SystemClock.elapsedRealtime()
+        var lastUiUpdateAt = 0L
 
         while (isActive) {
             withFrameMillis {
                 val now = SystemClock.elapsedRealtime()
+                if (now - lastUiUpdateAt < LYRICS_UI_FRAME_MS) return@withFrameMillis
+                lastUiUpdateAt = now
                 val player = playerConnection.player
                 val reportedPosition = runCatching { player.currentPosition.coerceAtLeast(0L) }
                     .getOrDefault(lastPlayerPosition)
@@ -308,7 +310,7 @@ fun DiyyInlineLyricsPreview(
                 runCatching {
                     listState.animateScrollBy(
                         value = delta,
-                        animationSpec = tween(durationMillis = 900, easing = FastOutSlowInEasing),
+                        animationSpec = tween(durationMillis = 620, easing = LinearOutSlowInEasing),
                     )
                 }
             }
@@ -396,6 +398,11 @@ fun DiyyInlineLyricsPreview(
                             )
                         }
                     }
+                    instrumentalWindow != null -> InstrumentalProgressMarker(
+                        progress = instrumentalWindow.progress(playbackPositionMs),
+                        active = true,
+                        compact = true,
+                    )
                     else -> LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
@@ -411,7 +418,6 @@ fun DiyyInlineLyricsPreview(
                                 line = line,
                                 active = index == activeIndex,
                                 passed = activeIndex >= 0 && index < activeIndex,
-                                playbackPositionMs = playbackPositionMs,
                             )
                         }
                     }
@@ -437,29 +443,19 @@ private fun InlineLyricListLine(
     line: DiyyLyricLine,
     active: Boolean,
     passed: Boolean,
-    playbackPositionMs: Long,
 ) {
     val alpha by animateFloatAsState(
         targetValue = when {
             active -> 1f
-            passed -> 0.28f
-            else -> 0.50f
+            passed -> 0.30f
+            else -> 0.54f
         },
-        animationSpec = tween(260, easing = FastOutSlowInEasing),
+        animationSpec = tween(220, easing = FastOutSlowInEasing),
         label = "inlineLyricAlpha",
     )
 
     Text(
-        text = if (active) {
-            buildSmoothLyricText(
-                line = line,
-                playbackPositionMs = playbackPositionMs,
-                completedColor = DiyyRed,
-                pendingColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.60f),
-            )
-        } else {
-            buildAnnotatedString { append(line.text) }
-        },
+        text = line.text,
         color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha),
         fontSize = 15.5.sp,
         lineHeight = 20.sp,
@@ -526,10 +522,13 @@ fun DiyyLyricsSheet(
             playerConnection.player.currentPosition.coerceAtLeast(0L)
         }.getOrDefault(0L)
         var lastPlayerUpdateAt = SystemClock.elapsedRealtime()
+        var lastUiUpdateAt = 0L
 
         while (isActive) {
             withFrameMillis {
                 val now = SystemClock.elapsedRealtime()
+                if (now - lastUiUpdateAt < LYRICS_UI_FRAME_MS) return@withFrameMillis
+                lastUiUpdateAt = now
                 val player = playerConnection.player
                 val reportedPosition = runCatching { player.currentPosition.coerceAtLeast(0L) }
                     .getOrDefault(lastPlayerPosition)
@@ -587,7 +586,7 @@ fun DiyyLyricsSheet(
                 runCatching {
                     listState.animateScrollBy(
                         value = delta,
-                        animationSpec = tween(durationMillis = 1150, easing = FastOutSlowInEasing),
+                        animationSpec = tween(durationMillis = 760, easing = LinearOutSlowInEasing),
                     )
                 }
             }
@@ -602,18 +601,10 @@ fun DiyyLyricsSheet(
             dismissOnClickOutside = false,
         ),
     ) {
-        val background = MaterialTheme.colorScheme.background
-        val lyricTop = lerp(background, DiyyRed, 0.38f)
-        val lyricMiddle = lerp(background, DiyyRed, 0.14f)
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(lyricTop, lyricMiddle, background),
-                    ),
-                )
+                .background(Color.Black)
                 .safeDrawingPadding(),
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
@@ -623,32 +614,38 @@ fun DiyyLyricsSheet(
                         .padding(horizontal = 18.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    FigmaCircleButton(
-                        icon = R.drawable.arrow_back,
-                        contentDescription = "Close lyrics",
-                        onClick = onDismiss,
-                        tint = Color.White,
-                        modifier = Modifier.size(44.dp),
+                    Artwork(
+                        url = metadata?.thumbnailUrl,
+                        modifier = Modifier.size(48.dp),
+                        cornerRadius = 14,
                     )
-                    Spacer(Modifier.size(12.dp))
+                    Spacer(Modifier.size(11.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Full lyrics",
+                            text = metadata?.title ?: "Lyrics",
                             color = Color.White,
-                            style = MaterialTheme.typography.titleLarge,
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                         Text(
-                            text = activeLyrics?.provider
-                                ?.takeIf { it.isNotBlank() && it != "Unknown" }
-                                ?.let { "Synced by $it" }
-                                ?: "Smooth synced lyrics",
-                            color = Color.White.copy(alpha = 0.68f),
+                            text = metadata?.artists?.joinToString { it.name }
+                                .orEmpty()
+                                .ifBlank { "DiyyMusic" },
+                            color = Color.White.copy(alpha = 0.62f),
                             style = MaterialTheme.typography.bodySmall,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
+                    FigmaCircleButton(
+                        icon = R.drawable.close,
+                        contentDescription = "Close lyrics",
+                        onClick = onDismiss,
+                        tint = DiyyRed,
+                        modifier = Modifier.size(44.dp),
+                    )
                 }
 
                 when {
@@ -678,23 +675,27 @@ fun DiyyLyricsSheet(
                                 items = lines,
                                 key = { index, line -> "${line.timeMs ?: -1L}-$index-${line.text}" },
                             ) { index, line ->
-                                SpotifyLyricLine(
-                                    line = line,
-                                    active = hasSyncedLyrics && activeTime != null && line.timeMs == activeTime,
-                                    passed = hasSyncedLyrics && activeIndex >= 0 && index < activeIndex,
-                                    playbackPositionMs = if (index == activeIndex) {
-                                        effectivePlaybackPositionMs
-                                    } else {
-                                        Long.MIN_VALUE
-                                    },
-                                    onSeek = line.timeMs?.let { time ->
-                                        {
-                                            playerConnection.seekTo(
-                                                (time - lyricsOffsetMs).coerceAtLeast(0L),
-                                            )
-                                        }
-                                    },
-                                )
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    SpotifyLyricLine(
+                                        line = line,
+                                        active = hasSyncedLyrics && activeTime != null && line.timeMs == activeTime,
+                                        passed = hasSyncedLyrics && activeIndex >= 0 && index < activeIndex,
+                                        onSeek = line.timeMs?.let { time ->
+                                            {
+                                                playerConnection.seekTo(
+                                                    (time - lyricsOffsetMs).coerceAtLeast(0L),
+                                                )
+                                            }
+                                        },
+                                    )
+                                    instrumentalWindowAfter(lines, index)?.let { window ->
+                                        InstrumentalProgressMarker(
+                                            progress = window.progress(effectivePlaybackPositionMs),
+                                            active = effectivePlaybackPositionMs in window.startMs until window.endMs,
+                                            compact = false,
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -922,7 +923,6 @@ private fun SpotifyLyricLine(
     line: DiyyLyricLine,
     active: Boolean,
     passed: Boolean,
-    playbackPositionMs: Long,
     onSeek: (() -> Unit)?,
 ) {
     val ui = LocalDiyyUiConfig.current
@@ -930,25 +930,15 @@ private fun SpotifyLyricLine(
         targetValue = when {
             line.timeMs == null -> 0.92f
             active -> 1f
-            passed -> 0.34f
-            else -> 0.62f
+            passed -> 0.30f
+            else -> 0.56f
         },
-        animationSpec = tween(if (ui.reduceMotion) 60 else 180),
+        animationSpec = tween(if (ui.reduceMotion) 60 else 190),
         label = "spotifyLyricAlpha",
     )
-    val displayedText = if (active && playbackPositionMs != Long.MIN_VALUE) {
-        buildSmoothLyricText(
-            line = line,
-            playbackPositionMs = playbackPositionMs,
-            completedColor = Color.White,
-            pendingColor = Color.White.copy(alpha = 0.42f),
-        )
-    } else {
-        buildAnnotatedString { append(line.text) }
-    }
 
     Text(
-        text = displayedText,
+        text = line.text,
         color = Color.White.copy(alpha = alpha),
         fontSize = 24.sp,
         lineHeight = 31.sp,
@@ -1135,73 +1125,102 @@ private data class DiyyLyricLine(
     val words: List<WordTimestamp>? = null,
 )
 
+private data class InstrumentalWindow(
+    val startMs: Long,
+    val endMs: Long,
+) {
+    fun progress(positionMs: Long): Float =
+        ((positionMs - startMs).toFloat() / (endMs - startMs).coerceAtLeast(1L).toFloat())
+            .coerceIn(0f, 1f)
+}
 
-private fun buildSmoothLyricText(
-    line: DiyyLyricLine,
-    playbackPositionMs: Long,
-    completedColor: Color,
-    pendingColor: Color,
-) = buildAnnotatedString {
-    val words = line.words.orEmpty()
-    if (words.isNotEmpty()) {
-        val positionSeconds = playbackPositionMs / 1000.0
-        words.forEach { word ->
-            val wordText = word.text
-            val progress = when {
-                positionSeconds <= word.startTime -> 0f
-                positionSeconds >= word.endTime -> 1f
-                word.endTime <= word.startTime -> 1f
-                else -> ((positionSeconds - word.startTime) / (word.endTime - word.startTime))
-                    .toFloat()
-                    .coerceIn(0f, 1f)
-            }
-            val splitIndex = (wordText.length * progress).roundToInt().coerceIn(0, wordText.length)
-            if (splitIndex > 0) {
-                withStyle(SpanStyle(color = completedColor)) {
-                    append(wordText.substring(0, splitIndex))
-                }
-            }
-            if (splitIndex < wordText.length) {
-                withStyle(SpanStyle(color = pendingColor)) {
-                    append(wordText.substring(splitIndex))
-                }
-            }
-            if (word.hasTrailingSpace) {
-                withStyle(SpanStyle(color = if (progress >= 1f) completedColor else pendingColor)) {
-                    append(' ')
-                }
-            }
-        }
-        return@buildAnnotatedString
-    }
+private fun instrumentalWindowAfter(
+    lines: List<DiyyLyricLine>,
+    index: Int,
+): InstrumentalWindow? {
+    val current = lines.getOrNull(index) ?: return null
+    val currentStart = current.timeMs ?: return null
+    val nextStart = lines.drop(index + 1).firstNotNullOfOrNull { it.timeMs } ?: return null
 
-    val start = line.timeMs
-    val end = line.endTimeMs
-    if (start == null || end == null || end <= start) {
-        withStyle(SpanStyle(color = completedColor)) { append(line.text) }
-        return@buildAnnotatedString
-    }
+    val wordEnd = current.words
+        ?.lastOrNull()
+        ?.endTime
+        ?.times(1000.0)
+        ?.roundToLong()
+    val estimatedSpeechDuration = (current.text.length * 62L).coerceIn(1_300L, 4_100L)
+    val estimatedEnd = (wordEnd ?: (currentStart + estimatedSpeechDuration))
+        .coerceAtMost(nextStart)
+    val gapStart = estimatedEnd.coerceAtLeast(currentStart + 900L)
 
-    val progress = ((playbackPositionMs - start).toFloat() / (end - start).toFloat())
-        .coerceIn(0f, 1f)
-    val splitIndex = (line.text.length * progress).roundToInt().coerceIn(0, line.text.length)
-    if (splitIndex > 0) {
-        withStyle(SpanStyle(color = completedColor)) {
-            append(line.text.substring(0, splitIndex))
-        }
-    }
-    if (splitIndex < line.text.length) {
-        withStyle(SpanStyle(color = pendingColor)) {
-            append(line.text.substring(splitIndex))
+    if (nextStart - gapStart < MIN_INSTRUMENTAL_GAP_MS) return null
+    return InstrumentalWindow(startMs = gapStart, endMs = nextStart)
+}
+
+private fun currentInstrumentalWindow(
+    lines: List<DiyyLyricLine>,
+    activeIndex: Int,
+    positionMs: Long,
+): InstrumentalWindow? {
+    if (activeIndex < 0) return null
+    val window = instrumentalWindowAfter(lines, activeIndex) ?: return null
+    return window.takeIf { positionMs in it.startMs until it.endMs }
+}
+
+@Composable
+private fun InstrumentalProgressMarker(
+    progress: Float,
+    active: Boolean,
+    compact: Boolean,
+) {
+    val alpha by animateFloatAsState(
+        targetValue = if (active) 1f else 0.24f,
+        animationSpec = tween(220),
+        label = "instrumentalAlpha",
+    )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                horizontal = if (compact) 34.dp else 54.dp,
+                vertical = if (compact) 4.dp else 12.dp,
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(if (compact) 5.dp else 8.dp),
+    ) {
+        LinearProgressIndicator(
+            progress = { progress.coerceIn(0f, 1f) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(if (compact) 3.dp else 4.dp)
+                .clip(RoundedCornerShape(999.dp)),
+            color = DiyyRed.copy(alpha = alpha),
+            trackColor = if (compact) {
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.48f)
+            } else {
+                Color.White.copy(alpha = 0.14f)
+            },
+        )
+        if (active) {
+            Text(
+                text = "Instrumental",
+                color = if (compact) DiyyRed else Color.White.copy(alpha = 0.66f),
+                style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = if (compact) 0.5.sp else 1.sp,
+            )
         }
     }
 }
+
+private const val MIN_INSTRUMENTAL_GAP_MS = 2_400L
+
 
 private val metadataTagRegex = Regex("""^\[[a-zA-Z]+:.*]$""")
 private val lyricAgentTagRegex = Regex("""\{(?:agent:[^}]+|bg)\}""")
 private val inlineLyricTimeRegex = Regex("""<\d{1,3}:\d{2}(?:[.:]\d{1,3})?>""")
 private val lyricOffsetRegex = Regex("""(?im)^\[offset:([+-]?\d+)]\s*$""")
-private const val LYRICS_DISPLAY_COMPENSATION_MS = 120L
+private const val LYRICS_DISPLAY_COMPENSATION_MS = 180L
+private const val LYRICS_UI_FRAME_MS = 32L
 
 private fun parseDiyyLyrics(raw: String?): List<DiyyLyricLine> {
     if (raw.isNullOrBlank() || raw == LyricsEntity.LYRICS_NOT_FOUND) return emptyList()

@@ -191,8 +191,10 @@ data class HomePage(
                     renderer.isSong -> {
                         val subtitleGroups = renderer.subtitle?.runs?.splitBySeparator().orEmpty()
                         val genericLabels = setOf(
-                            "song", "songs", "video", "music video", "single", "album",
-                            "ep", "playlist", "podcast", "episode", "official audio",
+                            "song", "songs", "track", "tracks", "video", "music", "music video",
+                            "single", "album", "ep", "playlist", "podcast", "episode",
+                            "official audio", "official video", "audio", "lagu", "musik",
+                            "video musik", "singel",
                         )
                         fun isUsefulArtistText(text: String): Boolean {
                             val value = text.trim()
