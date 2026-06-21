@@ -76,7 +76,6 @@ import com.diyy.music.ui.component.DiyyQueueSheet
 import com.diyy.music.ui.component.FigmaCircleButton
 import com.diyy.music.ui.component.LiquidGlassBox
 import com.diyy.music.ui.theme.DiyyRed
-import com.diyy.music.ui.theme.DiyySoftRed
 import com.diyy.music.ui.theme.LocalDiyyUiConfig
 import com.diyy.music.utils.dataStore
 import kotlinx.coroutines.delay
@@ -130,11 +129,12 @@ fun PlayerScreen(
     }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val compact = maxHeight < 700.dp
+        val compact = maxHeight < 680.dp
+        val needsScroll = maxHeight < 540.dp
         val artworkSize = when {
             hideArtwork -> 0.dp
-            compact -> (maxWidth - 82.dp).coerceAtMost(270.dp)
-            else -> (maxWidth - 64.dp).coerceAtMost(330.dp)
+            compact -> (maxWidth - 92.dp).coerceAtMost(250.dp)
+            else -> (maxWidth - 72.dp).coerceAtMost(310.dp)
         }
 
         if (ui.backgroundGlow) {
@@ -156,11 +156,14 @@ fun PlayerScreen(
             )
         }
 
+        val contentModifier = if (needsScroll) {
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+        } else {
+            Modifier.fillMaxSize()
+        }
+
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 10.dp),
+            modifier = contentModifier.padding(horizontal = 20.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(
@@ -292,7 +295,11 @@ fun PlayerScreen(
                 )
             }
 
-            Spacer(Modifier.height(if (compact) 14.dp else 22.dp))
+            if (needsScroll) {
+                Spacer(Modifier.height(14.dp))
+            } else {
+                Spacer(Modifier.weight(1f))
+            }
             LiquidGlassBox(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -326,7 +333,7 @@ fun PlayerScreen(
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(if (needsScroll) 18.dp else 6.dp))
         }
     }
 
@@ -465,7 +472,7 @@ private fun SimplePlayerButton(
     Surface(
         modifier = Modifier.size(size.dp),
         shape = CircleShape,
-        color = if (active) DiyySoftRed else Color.Transparent,
+        color = if (active) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
         tonalElevation = 0.dp,
         onClick = onClick,
     ) {
@@ -490,7 +497,7 @@ private fun CompactPlayerAction(
     Surface(
         modifier = Modifier.size(46.dp),
         shape = CircleShape,
-        color = if (active) DiyySoftRed else Color.Transparent,
+        color = if (active) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
         tonalElevation = 0.dp,
         onClick = onClick,
     ) {

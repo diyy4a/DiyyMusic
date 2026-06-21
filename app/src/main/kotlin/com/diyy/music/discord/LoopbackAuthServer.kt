@@ -12,12 +12,14 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeout
 import timber.log.Timber
-import java.io.IOException
-import java.net.ServerSocket
 
 data class AuthCodeResult(val code: String, val state: String)
 
-class LoopbackAuthServer(private val expectedState: String) {
+class LoopbackAuthServer(
+    private val expectedState: String,
+    private val port: Int,
+    private val callbackPath: String = "/callback",
+) {
 
     private companion object {
         const val TAG = "DiscordSvc"
@@ -28,24 +30,11 @@ class LoopbackAuthServer(private val expectedState: String) {
 
     private var server: EmbeddedServer<*, *>? = null
 
-    private fun findAvailablePort(): Int {
-        val socket = try {
-            ServerSocket(0)
-        } catch (e: IOException) {
-            Timber.tag(TAG).e(e, "loopback: failed to open ServerSocket(0)")
-            throw e
-        }
-        val port = socket.localPort
-        socket.close()
-        return port
-    }
-
     suspend fun start(): Int {
-        val port = findAvailablePort()
-        Timber.tag(TAG).i("loopback: starting on %s:%d", DEFAULT_HOST, port)
+        Timber.tag(TAG).i("loopback: starting on %s:%d%s", DEFAULT_HOST, port, callbackPath)
         server = embeddedServer(CIO, port = port, host = DEFAULT_HOST) {
             routing {
-                get("/callback") {
+                get(callbackPath) {
                     val code = call.request.queryParameters["code"]
                     val state = call.request.queryParameters["state"]
                     val error = call.request.queryParameters["error"]

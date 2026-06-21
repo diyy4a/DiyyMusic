@@ -5,6 +5,7 @@ import android.content.ActivityNotFoundException
 import android.util.Base64
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.net.toUri
+import android.net.Uri
 import com.diyy.music.BuildConfig
 import com.diyy.music.discord.DiscordDefaults.DISCORD_OAUTH_AUTHORIZE
 import com.diyy.music.discord.DiscordDefaults.DISCORD_OAUTH_TOKEN
@@ -53,22 +54,37 @@ class DiscordAuth(
     @Volatile
     private var activeLoopback: LoopbackAuthServer? = null
 
-    private fun loopbackRedirectUri(port: Int): String = "http://127.0.0.1:$port/callback"
+    private val redirectUri: String
+        get() = BuildConfig.DISCORD_REDIRECT_URI
+
+    private fun redirectConfig(): Triple<Int, String, String> {
+        val parsed = Uri.parse(redirectUri)
+        require(parsed.scheme == "http" && parsed.host in setOf("127.0.0.1", "localhost")) {
+            "DISCORD_REDIRECT_URI must use local loopback HTTP"
+        }
+        val port = parsed.port.takeIf { it in 1..65535 } ?: 6463
+        val path = parsed.path?.takeIf { it.startsWith("/") && it.length > 1 } ?: "/callback"
+        return Triple(port, path, parsed.buildUpon().encodedPath(path).build().toString())
+    }
 
     suspend fun authorize(activity: Activity): DiscordAuthResult {
         val pkce = generatePkcePair()
         val state = generateState()
-        val loopback = LoopbackAuthServer(expectedState = state)
+        val (port, callbackPath, configuredRedirectUri) = redirectConfig()
+        val loopback = LoopbackAuthServer(
+            expectedState = state,
+            port = port,
+            callbackPath = callbackPath,
+        )
         activeLoopback = loopback
 
         try {
-            val port = withContext(Dispatchers.IO) { loopback.start() }
-            val redirectUri = loopbackRedirectUri(port)
-            Timber.tag(TAG).i("authorize: starting (redirectUri=%s)", redirectUri)
+            withContext(Dispatchers.IO) { loopback.start() }
+            Timber.tag(TAG).i("authorize: starting (redirectUri=%s)", configuredRedirectUri)
 
             val authUrl = buildAuthorizeUrl(
                 clientId = BuildConfig.DISCORD_APP_ID,
-                redirectUri = redirectUri,
+                redirectUri = configuredRedirectUri,
                 state = state,
                 challenge = pkce.challenge,
             )
@@ -93,7 +109,7 @@ class DiscordAuth(
             return exchangeAuthorizationCode(
                 code = callback.code,
                 verifier = pkce.verifier,
-                redirectUri = redirectUri,
+                redirectUri = configuredRedirectUri,
             )
         } finally {
             activeLoopback = null
@@ -203,6 +219,7 @@ class DiscordAuth(
             append("&state=").append(state)
             append("&code_challenge_method=S256")
             append("&code_challenge=").append(challenge)
+            append("&prompt=consent")
         }
     }
 

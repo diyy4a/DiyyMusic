@@ -124,14 +124,16 @@ fun DiyyMusicRoot(
         bottomBar = {
             if (isMainRoute) {
                 Column {
-                    DiyyMiniPlayer(
-                        metadata = metadata,
-                        isPlaying = isPlaying,
-                        progress = progress,
-                        onOpen = { navController.navigate(DiyyRoutes.PLAYER) },
-                        onPlayPause = { playerConnection?.togglePlayPause() },
-                        onNext = { playerConnection?.seekToNext() },
-                    )
+                    if (metadata != null) {
+                        DiyyMiniPlayer(
+                            metadata = metadata,
+                            isPlaying = isPlaying,
+                            progress = progress,
+                            onOpen = { navController.navigate(DiyyRoutes.PLAYER) },
+                            onPlayPause = { playerConnection?.togglePlayPause() },
+                            onNext = { playerConnection?.seekToNext() },
+                        )
+                    }
                     DiyyBottomNavigation(
                         selected = currentTab,
                         onSelected = { navigateToTab(navController, it) },

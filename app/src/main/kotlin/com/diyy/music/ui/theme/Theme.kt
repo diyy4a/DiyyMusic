@@ -32,9 +32,10 @@ val DiyyInk = Color(0xFF19171C)
 val DiyyMuted = Color(0xFF77717D)
 val DiyyGlass = Color(0xD9FFFFFF)
 val DiyyGlassDark = Color(0xCC24232A)
-val DiyyDarkCanvas = Color(0xFF0F0E12)
-val DiyyDarkSurface = Color(0xFF1A181E)
-val DiyyDarkDivider = Color(0xFF37333D)
+val DiyyDarkCanvas = Color(0xFF0D0C10)
+val DiyyDarkSurface = Color(0xFF18161C)
+val DiyyDarkSurfaceRaised = Color(0xFF211E27)
+val DiyyDarkDivider = Color(0xFF403A47)
 
 val DefaultThemeColor: Color = DiyyRed
 
@@ -89,12 +90,12 @@ private val DarkColors = darkColorScheme(
     onSecondary = Color.Black,
     background = DiyyDarkCanvas,
     onBackground = Color(0xFFF8F3F7),
-    surface = DiyyDarkCanvas,
+    surface = DiyyDarkSurface,
     onSurface = Color(0xFFF8F3F7),
-    surfaceVariant = DiyyDarkSurface,
+    surfaceVariant = DiyyDarkSurfaceRaised,
     onSurfaceVariant = Color(0xFFC8C0CA),
     outline = DiyyDarkDivider,
-    outlineVariant = Color(0xFF2A2730),
+    outlineVariant = Color(0xFF2F2A35),
     error = Color(0xFFFFB4AB),
 )
 
@@ -183,8 +184,12 @@ fun DiyyMusicTheme(
     val base: ColorScheme = if (darkTheme) DarkColors else LightColors
     val colors = base.copy(
         primary = themeColor,
+        primaryContainer = if (darkTheme) Color(0xFF4A1428) else base.primaryContainer,
         background = if (darkTheme && pureBlack) Color.Black else base.background,
         surface = if (darkTheme && pureBlack) Color.Black else base.surface,
+        surfaceVariant = if (darkTheme && pureBlack) Color(0xFF121015) else base.surfaceVariant,
+        outline = if (darkTheme && pureBlack) Color(0xFF343039) else base.outline,
+        outlineVariant = if (darkTheme && pureBlack) Color(0xFF211E25) else base.outlineVariant,
     )
     CompositionLocalProvider(LocalDiyyUiConfig provides uiConfig) {
         MaterialTheme(

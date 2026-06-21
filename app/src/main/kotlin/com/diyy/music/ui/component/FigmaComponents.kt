@@ -77,15 +77,11 @@ import com.diyy.music.R
 import com.diyy.music.constants.MiniPlayerOutlineKey
 import com.diyy.music.models.MediaMetadata
 import com.diyy.music.ui.DiyyMainTab
-import com.diyy.music.ui.theme.DiyyDivider
 import com.diyy.music.ui.theme.DiyyGlass
-import com.diyy.music.ui.theme.DiyyPinkLight
 import com.diyy.music.ui.theme.DiyyRed
 import com.diyy.music.ui.theme.DiyyRedStrong
 import com.diyy.music.ui.theme.DiyyMotionPreset
 import com.diyy.music.ui.theme.LocalDiyyUiConfig
-import com.diyy.music.ui.theme.DiyySoftRed
-import com.diyy.music.ui.theme.DiyySurface
 import com.diyy.music.ui.theme.isDiyyDarkTheme
 import com.diyy.music.utils.dataStore
 import kotlinx.coroutines.flow.map
@@ -223,14 +219,14 @@ fun DiyyBrandMark(
         Image(
             painter = painterResource(R.drawable.diyy_brand_mark),
             contentDescription = "DiyyMusic",
-            modifier = Modifier.size(30.dp),
+            modifier = Modifier.size(20.dp),
         )
         if (showName) {
             Spacer(Modifier.width(7.dp))
             Text(
                 text = "DiyyMusic",
                 color = DiyyRed,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
             )
         }
@@ -338,7 +334,7 @@ fun DiyyAvatarButton(
                 .size(38.dp)
                 .align(Alignment.Center)
                 .clip(CircleShape)
-                .background(DiyySoftRed)
+                .background(MaterialTheme.colorScheme.primaryContainer)
                 .border(1.5.dp, DiyyRed.copy(alpha = 0.75f), CircleShape),
             contentAlignment = Alignment.Center,
         ) {
@@ -451,7 +447,7 @@ fun DiyyBottomNavigation(
                                     modifier = Modifier
                                         .size(38.dp)
                                         .clip(CircleShape)
-                                        .background(DiyySoftRed),
+                                        .background(MaterialTheme.colorScheme.primaryContainer),
                                 )
                             }
                             Icon(
@@ -502,7 +498,7 @@ fun DiyyMiniPlayer(
                 .height(78.dp)
                 .then(
                     if (showOutline) Modifier.border(
-                        BorderStroke(1.dp, DiyyPinkLight.copy(alpha = 0.5f)),
+                        BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)),
                         RoundedCornerShape(26.dp),
                     ) else Modifier,
                 ),
@@ -595,7 +591,7 @@ fun Artwork(
         modifier = modifier
             .shadow(shadow, shape, clip = false)
             .clip(shape)
-            .background(DiyySurface),
+            .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
     ) {
         if (!url.isNullOrBlank()) {
@@ -869,7 +865,7 @@ fun FigmaLibraryShortcut(
                 modifier = Modifier
                     .size(39.dp)
                     .clip(RoundedCornerShape(13.dp))
-                    .background(if (selected) DiyyRed else DiyySoftRed),
+                    .background(if (selected) DiyyRed else MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -914,7 +910,7 @@ fun DiyyStatCard(
                 modifier = Modifier
                     .size(34.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(DiyySoftRed),
+                    .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -950,7 +946,7 @@ fun FigmaSettingsRow(
             modifier = Modifier
                 .size(40.dp)
                 .clip(RoundedCornerShape(13.dp))
-                .background(if (destructive) MaterialTheme.colorScheme.error.copy(alpha = 0.10f) else DiyySoftRed),
+                .background(if (destructive) MaterialTheme.colorScheme.error.copy(alpha = 0.10f) else MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -1003,7 +999,7 @@ fun FigmaGroupedList(
 fun FigmaDivider() {
     HorizontalDivider(
         modifier = Modifier.padding(start = 68.dp, end = 16.dp),
-        color = DiyyDivider.copy(alpha = 0.55f),
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f),
     )
 }
 

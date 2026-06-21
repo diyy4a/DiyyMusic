@@ -60,7 +60,6 @@ import com.diyy.music.ui.component.FigmaMediaRow
 import com.diyy.music.ui.component.FigmaSectionHeader
 import com.diyy.music.ui.component.LiquidGlassBox
 import com.diyy.music.ui.theme.DiyyRed
-import com.diyy.music.ui.theme.DiyySoftRed
 import com.diyy.music.viewmodels.OnlineSearchSuggestionViewModel
 
 private data class SearchCategory(
@@ -408,7 +407,7 @@ private fun SearchField(
             Surface(
                 modifier = Modifier.size(34.dp),
                 shape = CircleShape,
-                color = DiyySoftRed,
+                color = MaterialTheme.colorScheme.primaryContainer,
                 onClick = onSearch,
             ) {
                 Icon(

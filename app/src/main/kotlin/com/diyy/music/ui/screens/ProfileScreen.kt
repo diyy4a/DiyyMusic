@@ -53,7 +53,6 @@ import com.diyy.music.ui.component.FigmaSectionHeader
 import com.diyy.music.ui.component.FigmaSettingsRow
 import com.diyy.music.ui.component.LiquidGlassBox
 import com.diyy.music.ui.theme.DiyyRed
-import com.diyy.music.ui.theme.DiyySoftRed
 import com.diyy.music.viewmodels.HomeViewModel
 
 @Composable
@@ -124,7 +123,7 @@ fun ProfileScreen(
                         modifier = Modifier
                             .size(104.dp)
                             .clip(CircleShape)
-                            .background(DiyySoftRed),
+                            .background(MaterialTheme.colorScheme.primaryContainer),
                         contentAlignment = Alignment.Center,
                     ) {
                         if (!accountImageUrl.isNullOrBlank()) {

@@ -1,6 +1,8 @@
 package com.diyy.music.ui.screens
 
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.ContextWrapper
 import androidx.compose.animation.AnimatedVisibility
@@ -27,8 +29,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -56,6 +56,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -124,6 +126,7 @@ import com.diyy.music.constants.VisitorDataKey
 import com.diyy.music.constants.YtmSyncKey
 import com.diyy.music.discord.DiscordDefaults
 import com.diyy.music.discord.DiscordRpcManager
+import com.diyy.music.eq.data.SavedEQProfile
 import com.diyy.music.ui.component.DiyyScreenHeader
 import com.diyy.music.ui.component.FigmaDivider
 import com.diyy.music.ui.component.FigmaGroupedList
@@ -131,10 +134,10 @@ import com.diyy.music.ui.component.FigmaSettingsRow
 import com.diyy.music.ui.component.LiquidGlassBox
 import com.diyy.music.ui.theme.DiyyMotionPreset
 import com.diyy.music.ui.theme.DiyyRed
-import com.diyy.music.ui.theme.DiyySoftRed
 import com.diyy.music.utils.dataStore
 import com.diyy.music.utils.rememberPreference
 import com.diyy.music.viewmodels.AccountSettingsViewModel
+import com.diyy.music.viewmodels.EqualizerSettingsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -523,12 +526,26 @@ private fun AppearanceDetail(onBack: () -> Unit, modifier: Modifier) {
 }
 
 @Composable
-private fun PlayerAudioDetail(onBack: () -> Unit, modifier: Modifier) {
+private fun PlayerAudioDetail(
+    onBack: () -> Unit,
+    modifier: Modifier,
+    equalizerViewModel: EqualizerSettingsViewModel = hiltViewModel(),
+) {
     var audioQuality by rememberPreference(AudioQualityKey, AudioQuality.AUTO.name)
     var crossfadeEnabled by rememberPreference(CrossfadeEnabledKey, false)
     var crossfadeDurationPreference by rememberPreference(CrossfadeDurationKey, 5f)
     var crossfadeDuration by remember { mutableStateOf(crossfadeDurationPreference) }
     var cacheSize by rememberPreference(MaxSongCacheSizeKey, 1024)
+    var showEqualizerBands by rememberSaveable { mutableStateOf(false) }
+    val activeEqProfile by equalizerViewModel.activeProfile.collectAsStateWithLifecycle()
+    val equalizerOptions = remember(equalizerViewModel.presets, activeEqProfile?.id) {
+        buildList {
+            add(EqualizerSettingsViewModel.FLAT_ID to "Off / Flat")
+            addAll(equalizerViewModel.presets.map { it.id to it.name })
+            val custom = activeEqProfile
+            if (custom != null && none { it.first == custom.id }) add(custom.id to custom.name)
+        }
+    }
 
     LaunchedEffect(crossfadeDurationPreference) { crossfadeDuration = crossfadeDurationPreference }
 
@@ -620,6 +637,43 @@ private fun PlayerAudioDetail(onBack: () -> Unit, modifier: Modifier) {
         item { BooleanSettingsGroup(playbackSettings, Modifier.padding(horizontal = 18.dp)) }
         item { SettingsLabel("Audio behavior") }
         item { BooleanSettingsGroup(audioSettings, Modifier.padding(horizontal = 18.dp)) }
+
+        item { SettingsLabel("Equalizer") }
+        item {
+            FigmaGroupedList(modifier = Modifier.padding(horizontal = 18.dp)) {
+                DropdownPreferenceRow(
+                    title = "Equalizer preset",
+                    subtitle = activeEqProfile?.let {
+                        "${it.bands.size} bands • ${formatGain(it.preamp)} dB preamp"
+                    } ?: "Flat response with no EQ processing.",
+                    icon = R.drawable.equalizer,
+                    selected = activeEqProfile?.id ?: EqualizerSettingsViewModel.FLAT_ID,
+                    options = equalizerOptions,
+                    onSelected = equalizerViewModel::selectPreset,
+                )
+                if (activeEqProfile != null) {
+                    FigmaDivider()
+                    TextButton(
+                        onClick = { showEqualizerBands = !showEqualizerBands },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            if (showEqualizerBands) "Hide band controls" else "Tune equalizer bands",
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    AnimatedVisibility(visible = showEqualizerBands) {
+                        activeEqProfile?.let { profile ->
+                            EqualizerBandEditor(
+                                profile = profile,
+                                onBandGainChanged = equalizerViewModel::updateBandGain,
+                                onPreampChanged = equalizerViewModel::updatePreamp,
+                            )
+                        }
+                    }
+                }
+            }
+        }
 
         item { SettingsLabel("Downloads & cache") }
         item {
@@ -808,6 +862,43 @@ private fun DiscordDetail(onBack: () -> Unit, modifier: Modifier) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
 
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                text = "OAuth redirect URI",
+                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Text(
+                                text = BuildConfig.DISCORD_REDIRECT_URI,
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            Text(
+                                text = "Register this exact address in Discord Developer Portal → OAuth2 → Redirects.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            TextButton(
+                                onClick = {
+                                    val clipboard = context.getSystemService(ClipboardManager::class.java)
+                                    clipboard?.setPrimaryClip(
+                                        ClipData.newPlainText("DiyyMusic Discord redirect", BuildConfig.DISCORD_REDIRECT_URI),
+                                    )
+                                },
+                                modifier = Modifier.align(Alignment.End),
+                            ) {
+                                Text("Copy redirect URI")
+                            }
+                        }
+                    }
+
                     if (!lastError.isNullOrBlank()) {
                         Text(
                             text = "Discord error: $lastError",
@@ -963,6 +1054,85 @@ private fun findActivity(context: Context): Activity? {
 }
 
 @Composable
+private fun EqualizerBandEditor(
+    profile: SavedEQProfile,
+    onBandGainChanged: (Int, Double) -> Unit,
+    onPreampChanged: (Double) -> Unit,
+) {
+    var gains by remember(profile.id, profile.bands) {
+        mutableStateOf(profile.bands.map { it.gain.toFloat() })
+    }
+    var preamp by remember(profile.id, profile.preamp) { mutableStateOf(profile.preamp.toFloat()) }
+
+    Column(
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = "Preamp",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Slider(
+                value = preamp,
+                onValueChange = { preamp = it },
+                onValueChangeFinished = { onPreampChanged(preamp.toDouble()) },
+                valueRange = -12f..6f,
+                steps = 35,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = "${formatGain(preamp.toDouble())} dB",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.width(64.dp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.End,
+            )
+        }
+
+        profile.bands.forEachIndexed { index, band ->
+            val value = gains.getOrElse(index) { band.gain.toFloat() }
+            Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = formatFrequency(band.frequency),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.width(54.dp),
+                    )
+                    Slider(
+                        value = value,
+                        onValueChange = { updated ->
+                            gains = gains.toMutableList().also { list ->
+                                if (index in list.indices) list[index] = updated
+                            }
+                        },
+                        onValueChangeFinished = { onBandGainChanged(index, value.toDouble()) },
+                        valueRange = -12f..12f,
+                        steps = 47,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = formatGain(value.toDouble()),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.width(46.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun formatFrequency(frequency: Double): String =
+    if (frequency >= 1000.0) "${(frequency / 1000.0).let { if (it % 1.0 == 0.0) it.toInt() else it }}k"
+    else frequency.toInt().toString()
+
+private fun formatGain(gain: Double): String = String.format(java.util.Locale.US, "%+.1f", gain)
+
+@Composable
 private fun DropdownPreferenceRow(
     title: String,
     subtitle: String,
@@ -975,84 +1145,109 @@ private fun DropdownPreferenceRow(
     val selectedLabel = options.firstOrNull { it.first == selected }?.second
         ?: options.firstOrNull()?.second.orEmpty()
 
-    Box {
-        Row(
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { expanded = true }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = true }
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .size(40.dp)
+                .clip(RoundedCornerShape(13.dp))
+                .background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(13.dp))
-                    .background(DiyySoftRed),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = painterResource(icon),
-                    contentDescription = null,
-                    tint = DiyyRed,
-                    modifier = Modifier.size(21.dp),
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Text(
-                text = selectedLabel,
-                style = MaterialTheme.typography.bodyMedium,
-                color = DiyyRed,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(Modifier.width(6.dp))
             Icon(
-                painter = painterResource(R.drawable.expand_more),
-                contentDescription = "Open $title options",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp),
+                painter = painterResource(icon),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(21.dp),
             )
         }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(
+            text = selectedLabel,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(Modifier.width(8.dp))
+        Icon(
+            painter = painterResource(R.drawable.expand_more),
+            contentDescription = "Open $title options",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp),
+        )
+    }
 
-        DropdownMenu(
-            expanded = expanded,
+    if (expanded) {
+        Dialog(
             onDismissRequest = { expanded = false },
+            properties = DialogProperties(usePlatformDefaultWidth = true),
         ) {
-            options.forEach { (value, label) ->
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = label,
-                            color = if (selected == value) DiyyRed else MaterialTheme.colorScheme.onSurface,
-                            fontWeight = if (selected == value) FontWeight.SemiBold else FontWeight.Normal,
-                        )
-                    },
-                    trailingIcon = {
-                        if (selected == value) {
-                            Icon(
-                                painter = painterResource(R.drawable.check),
-                                contentDescription = null,
-                                tint = DiyyRed,
-                                modifier = Modifier.size(18.dp),
+            LiquidGlassBox(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(28.dp),
+                elevation = 10.dp,
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                    )
+                    options.forEach { (value, label) ->
+                        val active = selected == value
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(
+                                    if (active) MaterialTheme.colorScheme.primaryContainer
+                                    else MaterialTheme.colorScheme.surface.copy(alpha = 0.30f),
+                                )
+                                .clickable {
+                                    onSelected(value)
+                                    expanded = false
+                                }
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = label,
+                                color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                                modifier = Modifier.weight(1f),
                             )
+                            if (active) {
+                                Icon(
+                                    painter = painterResource(R.drawable.check),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
                         }
-                    },
-                    onClick = {
-                        onSelected(value)
-                        expanded = false
-                    },
-                )
+                    }
+                }
             }
         }
     }
@@ -1163,7 +1358,7 @@ private fun InlineSwitchRow(
                 modifier = Modifier
                     .size(42.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(DiyySoftRed),
+                    .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -1213,7 +1408,7 @@ private fun SliderPreferenceRow(
             modifier = Modifier
                 .size(42.dp)
                 .clip(RoundedCornerShape(14.dp))
-                .background(DiyySoftRed),
+                .background(MaterialTheme.colorScheme.primaryContainer),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
