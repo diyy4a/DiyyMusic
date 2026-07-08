@@ -69,14 +69,6 @@ fun SettingsScreen(
             )
         }
         item { FigmaDivider() }
-        item {
-            FigmaSettingsRow(
-                title = "Discord Rich Presence",
-                subtitle = "Show the song currently playing on Discord",
-                icon = R.drawable.discord,
-                onClick = { onOpenSection("discord") },
-            )
-        }
 
         item { SettingsGroupTitle("Storage & Data") }
         item {

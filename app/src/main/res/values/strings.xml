@@ -343,5 +343,4 @@
     <string name="new_version_available">New version available</string>
     <string name="translation_models">Translation Models</string>
     <string name="clear_translation_models">Clear translation models</string>
-    <string name="discord_information">DiyyMusic uses the KizzyRPC library to set your Discord account status. This connects directly to the Discord Gateway and may not be officially supported by Discord. Continue at your own risk.\n\nDiyyMusic only extracts the token required for the connection, while all other data stays locally on your device.</string>
 </resources>

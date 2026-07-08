@@ -10,9 +10,6 @@ workflows:
         DIYYMUSIC_APP_NAME: "DiyyMusic"
         DIYYMUSIC_APPLICATION_ID: "com.diyy.music"
         DIYYMUSIC_ABI: "universal"
-        DISCORD_APP_ID: "1518124516893528125"
-        DISCORD_REDIRECT_URI: "http://127.0.0.1:6463/callback"
-        DISCORD_SOCIAL_SDK_ENABLED: "false"
 
     cache:
       cache_paths:

@@ -284,13 +284,6 @@ fun ProfileScreen(
                 )
                 FigmaDivider()
                 FigmaSettingsRow(
-                    title = "Discord Rich Presence",
-                    subtitle = "Connect Discord and share the current track",
-                    icon = R.drawable.integration,
-                    onClick = { onOpenFeature("discord") },
-                )
-                FigmaDivider()
-                FigmaSettingsRow(
                     title = "About DiyyMusic",
                     subtitle = "Version ${BuildConfig.VERSION_NAME}",
                     icon = R.drawable.info,

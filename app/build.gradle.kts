@@ -122,32 +122,9 @@ android {
         val lastFmKey = localProperties.getProperty("LASTFM_API_KEY") ?: System.getenv("LASTFM_API_KEY") ?: ""
         val lastFmSecret = localProperties.getProperty("LASTFM_SECRET") ?: System.getenv("LASTFM_SECRET") ?: ""
 
-        val discordAppId = (
-            localProperties.getProperty("DISCORD_APP_ID")
-                ?: System.getenv("DISCORD_APP_ID")
-                ?: "1518124516893528125"
-        ).filter(Char::isDigit).ifBlank { "1518124516893528125" }
-
-        // Compatibility fields retained so older Discord UI files cannot break a clean build.
-        // The current Gateway implementation does not depend on the Social SDK flag.
-        val discordRedirectUri = (
-            localProperties.getProperty("DISCORD_REDIRECT_URI")
-                ?: System.getenv("DISCORD_REDIRECT_URI")
-                ?: "http://127.0.0.1:6463/callback"
-        ).trim().ifBlank { "http://127.0.0.1:6463/callback" }
-
-        val discordSocialSdkEnabled = (
-            localProperties.getProperty("DISCORD_SOCIAL_SDK_ENABLED")
-                ?: System.getenv("DISCORD_SOCIAL_SDK_ENABLED")
-                ?: "false"
-        ).trim().equals("true", ignoreCase = true)
-
         buildConfigField("String", "LASTFM_API_KEY", "\"$lastFmKey\"")
         buildConfigField("String", "LASTFM_SECRET", "\"$lastFmSecret\"")
         buildConfigField("String", "ARCHITECTURE", "\"$targetAbi\"")
-        buildConfigField("Long", "DISCORD_APP_ID", "${discordAppId}L")
-        buildConfigField("String", "DISCORD_REDIRECT_URI", "\"$discordRedirectUri\"")
-        buildConfigField("Boolean", "DISCORD_SOCIAL_SDK_ENABLED", discordSocialSdkEnabled.toString())
     }
 
     flavorDimensions += listOf("variant")

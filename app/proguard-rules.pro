@@ -197,12 +197,6 @@
     *;
 }
 
-## Discord RPC JNI
--keep class com.diyy.music.discord.DiscordRpcManager { *; }
--keepclassmembers class com.diyy.music.discord.DiscordRpcManager {
-    native <methods>;
-}
-
 ## Kotlinx Serialization
 -keepattributes *Annotation*
 -keepclassmembers class com.diyy.shazamkit.models.** {

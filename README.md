@@ -8,21 +8,12 @@ DiyyMusic is an open-source Android music client with a modern pink interface an
 
 ## Changes in 1.1.0
 
-- Fixed Codemagic compilation errors for missing `DISCORD_REDIRECT_URI` and `DISCORD_SOCIAL_SDK_ENABLED` BuildConfig fields.
-- Kept the Discord Gateway Rich Presence implementation while retaining compatibility fields for older source overlays.
+- Removed the Discord Rich Presence integration entirely (service hooks, settings UI, preferences, build config, CI variables).
+- Playlists: added a "New playlist" button and dialog (Playlists screen), an "Add to playlist" button on every song row across the app (local library, downloads, albums, artists, recently played, and online search/album/playlist/artist results), and a bottom sheet to pick an existing playlist or create a new one on the fly.
+- Playlist detail screen: added drag-to-reorder (only while sorted by "Custom order"), a sort menu (custom / date added / title / artist / play time, ascending or descending), a "hide video songs" filter, and a per-song "remove from playlist" button.
 - Removed the two unused MetroList Wrapped images: `wrapped_playlistv1.png` and `wrapped_playlistv2.png`.
 - Cleaned project documentation so `README.md` is the only Markdown file.
 - Updated Codemagic and GitHub Actions artifact names to DiyyMusic 1.1.0.
-
-## Discord build settings
-
-The defaults are already included in `app/build.gradle.kts`. They can still be overridden through environment variables or `local.properties`:
-
-```properties
-DISCORD_APP_ID=1518124516893528125
-DISCORD_REDIRECT_URI=http://127.0.0.1:6463/callback
-DISCORD_SOCIAL_SDK_ENABLED=false
-```
 
 ## Build with Codemagic
 
