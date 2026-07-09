@@ -4,7 +4,18 @@ DiyyMusic is an open-source Android music client with a modern pink interface an
 
 ## Current release
 
-**DiyyMusic 1.1.0** (`versionCode 32`)
+**DiyyMusic 1.1.1** (`versionCode 33`)
+
+## Changes in 1.1.1
+
+- Fixed the bottom mini-player and navigation bar popping in/out abruptly when opening or closing the full player screen; it now fades and slides in sync with the page transition.
+- Fixed bottom sheets (Song options, Add to playlist, Queue) closing instantly instead of animating away.
+- Fixed the "New playlist" row in the Add to playlist sheet being misaligned instead of centered (same fix applied to the Queue row and Song options menu rows).
+- Removed the placeholder "Radio" stations screen (TuneIn-style station list) and its "Get 1 month free" promo, along with all its navigation entry points.
+- Replaced the "Start radio" action with a local-library-first matching algorithm (`LocalMatchQueue.kt`) that prioritizes songs from the same artist, weighted by likes and play time, before falling back to an online mix.
+- Redesigned the theme-mode (and similar) picker dialogs with proper radio-style rows and a spring pop-in/pop-out animation instead of a flat, instantly-appearing list.
+- Added an "Add to playlist" option to the player's Song options sheet.
+- Minor performance work: cached repeated gradient allocations in the glass card component, raised the image memory cache size, and added smooth item-placement animations to song/album/artist/queue lists.
 
 ## Changes in 1.1.0
 
@@ -17,10 +28,10 @@ DiyyMusic is an open-source Android music client with a modern pink interface an
 
 ## Build with Codemagic
 
-Push the project to the `main` branch and run the **DiyyMusic v1.1.0 APK** workflow. The generated artifact is:
+Push the project to the `main` branch and run the **DiyyMusic v1.1.1 APK** workflow. The generated artifact is:
 
 ```text
-DiyyMusic-v1.1.0-universal.apk
+DiyyMusic-v1.1.1-universal.apk
 ```
 
 ## Build locally
