@@ -181,6 +181,7 @@ private fun QueueRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .fillMaxHeight()
                 .padding(horizontal = 12.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -1098,7 +1099,7 @@ private fun MenuAction(
         onClick = onClick,
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 10.dp),
+            modifier = Modifier.fillMaxWidth().fillMaxHeight().padding(horizontal = 15.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -159,7 +160,7 @@ fun AddToPlaylistSheet(
                 onClick = { showCreateDialog = true },
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+                    modifier = Modifier.fillMaxWidth().fillMaxHeight().padding(horizontal = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Surface(

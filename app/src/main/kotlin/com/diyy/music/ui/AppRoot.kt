@@ -1,11 +1,16 @@
 package com.diyy.music.ui
 
 import android.net.Uri
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -124,7 +129,17 @@ fun DiyyMusicRoot(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            if (isMainRoute) {
+            AnimatedVisibility(
+                visible = isMainRoute,
+                enter = fadeIn(tween(220)) + slideInVertically(
+                    animationSpec = tween(220),
+                    initialOffsetY = { it / 2 },
+                ),
+                exit = fadeOut(tween(160)) + slideOutVertically(
+                    animationSpec = tween(160),
+                    targetOffsetY = { it / 2 },
+                ),
+            ) {
                 Column {
                     if (metadata != null) {
                         DiyyMiniPlayer(
