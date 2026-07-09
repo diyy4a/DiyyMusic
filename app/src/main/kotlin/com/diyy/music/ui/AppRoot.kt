@@ -3,6 +3,7 @@ package com.diyy.music.ui
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -33,6 +34,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -159,10 +161,21 @@ fun DiyyMusicRoot(
             }
         },
     ) { innerPadding ->
+        val layoutDirection = LocalLayoutDirection.current
+        val animatedBottomPadding by animateDpAsState(
+            targetValue = if (isMainRoute) innerPadding.calculateBottomPadding() else 0.dp,
+            animationSpec = tween(180),
+            label = "navBottomPadding",
+        )
         NavHost(
             navController = navController,
             startDestination = DiyyMainTab.LISTEN_NOW.route,
-            modifier = Modifier.padding(innerPadding),
+            modifier = Modifier.padding(
+                top = innerPadding.calculateTopPadding(),
+                start = innerPadding.calculateStartPadding(layoutDirection),
+                end = innerPadding.calculateEndPadding(layoutDirection),
+                bottom = animatedBottomPadding,
+            ),
         ) {
             composable(DiyyMainTab.LISTEN_NOW.route) {
                 DiyyPageMotion {
