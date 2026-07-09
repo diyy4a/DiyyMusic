@@ -19,7 +19,6 @@ object DiyyRoutes {
     const val PLAYER = "player"
     const val LOGIN = "login"
     const val PROFILE = "profile"
-    const val RADIO = "radio"
     const val SETTINGS = "settings"
     const val FEATURE = "feature/{section}"
     const val HISTORY = "history"

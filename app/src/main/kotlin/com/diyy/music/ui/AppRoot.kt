@@ -59,7 +59,6 @@ import com.diyy.music.ui.screens.LoginScreen
 import com.diyy.music.ui.screens.ListenNowScreen
 import com.diyy.music.ui.screens.PlayerScreen
 import com.diyy.music.ui.screens.ProfileScreen
-import com.diyy.music.ui.screens.RadioScreen
 import com.diyy.music.ui.screens.SearchScreen
 import com.diyy.music.ui.screens.SettingDetailScreen
 import com.diyy.music.ui.screens.SettingsScreen
@@ -111,7 +110,6 @@ fun DiyyMusicRoot(
             "search" -> navigateToTab(navController, DiyyMainTab.SEARCH)
             "library" -> navigateToTab(navController, DiyyMainTab.LIBRARY)
             "profile" -> navigateToTab(navController, DiyyMainTab.PROFILE)
-            "radio" -> navController.navigate(DiyyRoutes.RADIO)
             "home", "listen_now" -> navigateToTab(navController, DiyyMainTab.LISTEN_NOW)
             "player" -> navController.navigate(DiyyRoutes.PLAYER)
             else -> if (requestedRoute?.startsWith("collection/") == true) {
@@ -157,7 +155,6 @@ fun DiyyMusicRoot(
                         playerConnection = playerConnection,
                         onOpenProfile = { navigateToTab(navController, DiyyMainTab.PROFILE) },
                         onOpenHistory = { navController.navigate(DiyyRoutes.HISTORY) },
-                        onOpenRadio = { navController.navigate(DiyyRoutes.RADIO) },
                         onOpenCollection = { openCollection(navController, it) },
                     )
                 }
@@ -201,19 +198,6 @@ fun DiyyMusicRoot(
                                 }
                                 navigateToTab(navController, DiyyMainTab.LISTEN_NOW)
                             }
-                        },
-                    )
-                }
-            }
-            composable(DiyyRoutes.RADIO) {
-                DiyyPageMotion {
-                    RadioScreen(
-                        onBack = navController::navigateUp,
-                        onOpenProfile = { navigateToTab(navController, DiyyMainTab.PROFILE) },
-                        onOpenHistory = { navController.navigate(DiyyRoutes.HISTORY) },
-                        onSearchStation = { query ->
-                            searchSeed = query
-                            navigateToTab(navController, DiyyMainTab.SEARCH)
                         },
                     )
                 }

@@ -80,7 +80,6 @@ fun ListenNowScreen(
     playerConnection: PlayerConnection?,
     onOpenProfile: () -> Unit,
     onOpenHistory: () -> Unit,
-    onOpenRadio: () -> Unit,
     onOpenCollection: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
@@ -211,8 +210,8 @@ fun ListenNowScreen(
         item {
             FigmaSectionHeader(
                 title = "Recommended Tonight",
-                actionText = "See All ›",
-                onAction = onOpenRadio,
+                actionText = "Refresh",
+                onAction = viewModel::refresh,
             )
         }
         item {
@@ -231,25 +230,13 @@ fun ListenNowScreen(
                                 val index = (homeTonight.indexOf(card) + 3).coerceAtMost(picks.lastIndex)
                                 playLocalSong(playerConnection, picks, index)
                             } else {
-                                onOpenRadio()
+                                viewModel.refresh()
                             }
                         },
                         modifier = Modifier.fillParentMaxWidth(0.43f),
                     )
                 }
             }
-        }
-
-        item {
-            FigmaSectionHeader(title = "Explore")
-        }
-        item {
-            FigmaMediaRow(
-                title = "DiyyMusic Radio",
-                subtitle = "Live and curated stations for every mood",
-                imageUrl = null,
-                onClick = onOpenRadio,
-            )
         }
 
         item {
