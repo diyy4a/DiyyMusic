@@ -139,6 +139,7 @@ fun DiyyQueueSheet(
                             window = window,
                             active = index == currentIndex,
                             onClick = { playerConnection.playQueueItem(index) },
+                            modifier = Modifier.animateItem(),
                         )
                     }
                 }
@@ -152,10 +153,11 @@ private fun QueueRow(
     window: Timeline.Window,
     active: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val metadata = window.mediaItem.metadata
     LiquidGlassBox(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(74.dp),
         shape = RoundedCornerShape(22.dp),
@@ -979,6 +981,7 @@ fun DiyyPlayerMenuSheet(
     onRadio: () -> Unit,
     onRetryPlayback: () -> Unit,
     onToggleFavorite: () -> Unit,
+    onAddToPlaylist: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(
@@ -1018,6 +1021,12 @@ fun DiyyPlayerMenuSheet(
                     else -> "Save this song for offline listening"
                 },
                 onClick = { onDownload(); onDismiss() },
+            )
+            MenuAction(
+                icon = R.drawable.playlist_add,
+                title = "Add to playlist",
+                subtitle = "Save this song to one of your playlists",
+                onClick = { onDismiss(); onAddToPlaylist() },
             )
             MenuAction(
                 icon = R.drawable.lyrics,

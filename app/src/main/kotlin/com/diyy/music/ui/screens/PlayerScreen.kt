@@ -65,6 +65,7 @@ import com.diyy.music.models.MediaMetadata
 import com.diyy.music.playback.DownloadUtil
 import com.diyy.music.playback.ExoDownloadService
 import com.diyy.music.playback.PlayerConnection
+import com.diyy.music.ui.component.AddToPlaylistSheet
 import com.diyy.music.ui.component.Artwork
 import com.diyy.music.ui.component.DiyyBrandMark
 import com.diyy.music.ui.component.DiyyInlineLyricsPreview
@@ -120,6 +121,7 @@ fun PlayerScreen(
     var showQueue by remember { mutableStateOf(false) }
     var showLyrics by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
+    var showAddToPlaylist by remember { mutableStateOf(false) }
 
     val toggleDownload: () -> Unit = {
         metadata?.let { toggleSongDownload(context, downloadUtil, it, download) }
@@ -328,8 +330,18 @@ fun PlayerScreen(
             onRadio = { playerConnection?.startRadioSeamlessly() },
             onRetryPlayback = { playerConnection?.retryPlayback() },
             onToggleFavorite = { playerConnection?.toggleLike() },
+            onAddToPlaylist = { if (metadata != null) showAddToPlaylist = true },
             onDismiss = { showMenu = false },
         )
+    }
+    if (showAddToPlaylist) {
+        metadata?.let { currentMetadata ->
+            AddToPlaylistSheet(
+                database = downloadUtil.database,
+                songs = listOf(currentMetadata),
+                onDismiss = { showAddToPlaylist = false },
+            )
+        }
     }
 }
 

@@ -139,6 +139,7 @@ fun LiquidGlassBox(
     }
     val shadowStrength = (0.35f + (0.65f * intensity)).coerceIn(0f, 1f)
     val effectiveElevation = (elevation.value.coerceAtMost(10f) * shadowStrength).dp
+    val backgroundBrush = remember(top, bottom) { Brush.verticalGradient(listOf(top, bottom)) }
 
     Box(
         modifier = modifier
@@ -149,7 +150,7 @@ fun LiquidGlassBox(
             }
             .shadow(effectiveElevation, shape, clip = false)
             .clip(shape)
-            .background(Brush.verticalGradient(listOf(top, bottom)))
+            .background(backgroundBrush)
             .border(1.dp, border, shape)
             .then(clickableModifier),
         content = content,

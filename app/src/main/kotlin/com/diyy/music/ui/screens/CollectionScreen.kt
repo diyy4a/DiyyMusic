@@ -153,6 +153,7 @@ private fun LocalAlbumsCollection(
                 subtitle = album.artists.joinToString { it.name },
                 imageUrl = album.thumbnailUrl,
                 onClick = { onOpenCollection("album:${album.id}") },
+                modifier = Modifier.animateItem(),
             )
         }
     }
@@ -175,6 +176,7 @@ private fun LocalArtistsCollection(
                 subtitle = "${artist.songCount} songs",
                 imageUrl = artist.thumbnailUrl,
                 onClick = { onOpenCollection("artist:${artist.id}") },
+                modifier = Modifier.animateItem(),
             )
         }
     }
@@ -209,6 +211,7 @@ private fun LocalPlaylistsCollection(
                 subtitle = "${playlist.songCount} songs",
                 imageUrl = playlist.thumbnails.firstOrNull(),
                 onClick = { onOpenCollection("playlist:${playlist.id}") },
+                modifier = Modifier.animateItem(),
             )
         }
     }
@@ -480,6 +483,7 @@ private fun SongListScreen(
                             ),
                         )
                     },
+                    modifier = Modifier.animateItem(),
                     trailing = {
                         IconButton(onClick = { addToPlaylistSong = song.toMediaMetadata() }) {
                             Icon(painterResource(R.drawable.playlist_add), contentDescription = "Add to playlist")
@@ -578,6 +582,7 @@ private fun OnlineArtistDetail(
                             else -> Unit
                         }
                     },
+                    modifier = Modifier.animateItem(),
                     trailing = if (songItem != null) {
                         {
                             IconButton(onClick = { addToPlaylistSong = songItem.toMediaMetadata() }) {
@@ -627,6 +632,7 @@ private fun OnlineSongList(
                             startIndex = songs.indexOfFirst { it.id == song.id },
                         )
                     },
+                    modifier = Modifier.animateItem(),
                     trailing = {
                         IconButton(onClick = { addToPlaylistSong = song.toMediaMetadata() }) {
                             Icon(painterResource(R.drawable.playlist_add), contentDescription = "Add to playlist")
