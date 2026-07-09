@@ -4,7 +4,15 @@ DiyyMusic is an open-source Android music client with a modern pink interface an
 
 ## Current release
 
-**DiyyMusic 1.1.1** (`versionCode 33`)
+**DiyyMusic 1.1.2** (`versionCode 34`)
+
+## Changes in 1.1.2
+
+- Fixed the mini-player and bottom nav bar being hidden on every screen except the 4 main tabs (playlist/album/artist/settings screens, etc.) — they now stay visible everywhere except the full player screen.
+- Fixed a leftover empty gap at the bottom of the full player screen (Scaffold was still reserving space for the mini-player/nav bar after it was hidden).
+- Main tab switches (Home / Search / Library / Profile) now slide in from the side instead of sliding up from the bottom; detail screens keep the vertical push motion.
+- Made the startup splash fade out smoothly instead of cutting instantly to the main screen.
+- Reworked the "liquid glass" card colors so the effect is actually visible in both dark and light mode (light mode cards were nearly the same color as the page background), and added a thin top-edge highlight for a more distinct glass look.
 
 ## Changes in 1.1.1
 
@@ -28,10 +36,10 @@ DiyyMusic is an open-source Android music client with a modern pink interface an
 
 ## Build with Codemagic
 
-Push the project to the `main` branch and run the **DiyyMusic v1.1.1 APK** workflow. The generated artifact is:
+Push the project to the `main` branch and run the **DiyyMusic v1.1.2 APK** workflow. The generated artifact is:
 
 ```text
-DiyyMusic-v1.1.1-universal.apk
+DiyyMusic-v1.1.2-universal.apk
 ```
 
 ## Build locally

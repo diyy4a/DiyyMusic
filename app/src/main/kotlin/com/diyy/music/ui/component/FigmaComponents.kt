@@ -12,7 +12,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -77,7 +79,6 @@ import com.diyy.music.R
 import com.diyy.music.constants.MiniPlayerOutlineKey
 import com.diyy.music.models.MediaMetadata
 import com.diyy.music.ui.DiyyMainTab
-import com.diyy.music.ui.theme.DiyyGlass
 import com.diyy.music.ui.theme.DiyyRed
 import com.diyy.music.ui.theme.DiyyRedStrong
 import com.diyy.music.ui.theme.DiyyMotionPreset
@@ -99,19 +100,24 @@ fun LiquidGlassBox(
     val intensity = ui.glassIntensity.coerceIn(0.2f, 1f)
     val softness = ui.glassSoftness.coerceIn(0f, 1f)
     val top = if (dark) {
-        Color(0xFF2A2830).copy(alpha = 0.52f + (0.34f * intensity))
+        Color(0xFF322E38).copy(alpha = 0.60f + (0.34f * intensity))
     } else {
-        Color.White.copy(alpha = 0.68f + (0.27f * intensity))
+        Color.White.copy(alpha = (0.90f + (0.10f * intensity)).coerceAtMost(1f))
     }
     val bottom = if (dark) {
-        Color(0xFF1C1A20).copy(alpha = 0.58f + (0.30f * intensity) - (0.10f * softness))
+        Color(0xFF1C1A20).copy(alpha = 0.66f + (0.30f * intensity) - (0.10f * softness))
     } else {
-        DiyyGlass.copy(alpha = 0.62f + (0.28f * intensity) - (0.08f * softness))
+        Color(0xFFF2EBF1).copy(alpha = (0.92f + (0.08f * intensity)).coerceAtMost(1f))
     }
     val border = if (dark) {
-        Color.White.copy(alpha = 0.05f + (0.09f * intensity))
+        Color.White.copy(alpha = 0.10f + (0.14f * intensity))
     } else {
-        Color.White.copy(alpha = 0.62f + (0.30f * intensity))
+        DiyyRed.copy(alpha = 0.10f + (0.09f * intensity))
+    }
+    val highlight = if (dark) {
+        Color.White.copy(alpha = 0.10f + (0.10f * intensity))
+    } else {
+        Color.White.copy(alpha = 0.85f)
     }
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
@@ -153,8 +159,25 @@ fun LiquidGlassBox(
             .background(backgroundBrush)
             .border(1.dp, border, shape)
             .then(clickableModifier),
-        content = content,
-    )
+    ) {
+        // Thin specular highlight along the top edge, the hallmark of a glass surface.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .align(Alignment.TopCenter)
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            highlight.copy(alpha = 0f),
+                            highlight,
+                            highlight.copy(alpha = 0f),
+                        ),
+                    ),
+                ),
+        )
+        content()
+    }
 }
 
 @Composable
@@ -194,6 +217,61 @@ fun DiyyPageMotion(
             slideOutVertically(
                 targetOffsetY = { -it / 36 },
                 animationSpec = tween((duration * 0.75f).toInt()),
+            )
+    }
+
+    AnimatedVisibility(
+        visible = visible,
+        modifier = modifier.fillMaxSize(),
+        enter = enterTransition,
+        exit = exitTransition,
+    ) {
+        Box(modifier = Modifier.fillMaxSize(), content = content)
+    }
+}
+
+/**
+ * Horizontal slide used specifically for switching between the main bottom-nav tabs
+ * (Home / Search / Library / Profile), instead of the vertical push motion used for
+ * detail screens.
+ */
+@Composable
+fun DiyyTabMotion(
+    modifier: Modifier = Modifier,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    val ui = LocalDiyyUiConfig.current
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+
+    val duration = when (ui.motionPreset) {
+        DiyyMotionPreset.GENTLE -> 280
+        DiyyMotionPreset.SMOOTH -> 200
+        DiyyMotionPreset.SNAPPY -> 130
+    }
+    val enterTransition = if (ui.reduceMotion) {
+        fadeIn(tween(90))
+    } else {
+        fadeIn(tween(duration)) +
+            slideInHorizontally(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = if (ui.motionPreset == DiyyMotionPreset.GENTLE) {
+                        Spring.StiffnessLow
+                    } else {
+                        Spring.StiffnessMediumLow
+                    },
+                ),
+                initialOffsetX = { it / 5 },
+            )
+    }
+    val exitTransition = if (ui.reduceMotion) {
+        fadeOut(tween(70))
+    } else {
+        fadeOut(tween((duration * 0.6f).toInt())) +
+            slideOutHorizontally(
+                targetOffsetX = { -it / 8 },
+                animationSpec = tween((duration * 0.7f).toInt()),
             )
     }
 

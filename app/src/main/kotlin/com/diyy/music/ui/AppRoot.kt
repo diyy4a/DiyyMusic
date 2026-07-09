@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -60,6 +61,7 @@ import com.diyy.music.ui.component.DiyyBottomNavigation
 import com.diyy.music.ui.component.DiyyBrandMark
 import com.diyy.music.ui.component.DiyyMiniPlayer
 import com.diyy.music.ui.component.DiyyPageMotion
+import com.diyy.music.ui.component.DiyyTabMotion
 import com.diyy.music.ui.screens.CollectionScreen
 import com.diyy.music.ui.screens.HistoryScreen
 import com.diyy.music.ui.screens.LibraryDisplayScreen
@@ -89,6 +91,7 @@ fun DiyyMusicRoot(
     val backStack by navController.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route ?: DiyyMainTab.LISTEN_NOW.route
     val isMainRoute = DiyyMainTab.entries.any { it.route == currentRoute }
+    val showBottomBar = currentRoute != DiyyRoutes.PLAYER && currentRoute != DiyyRoutes.LOGIN
     val currentTab = DiyyMainTab.entries.firstOrNull { it.route == currentRoute } ?: DiyyMainTab.LISTEN_NOW
 
     val metadataState = playerConnection?.mediaMetadata?.collectAsStateWithLifecycle()
@@ -103,14 +106,21 @@ fun DiyyMusicRoot(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var showStartupSplash by remember { mutableStateOf(true) }
+    var splashTargetAlpha by remember { mutableFloatStateOf(1f) }
+    val splashAlpha by animateFloatAsState(
+        targetValue = splashTargetAlpha,
+        animationSpec = tween(280),
+        label = "splashFade",
+        finishedListener = { value -> if (value <= 0f) showStartupSplash = false },
+    )
 
     LaunchedEffect(Unit) {
         delay(700)
-        showStartupSplash = false
+        splashTargetAlpha = 0f
     }
 
     if (showStartupSplash) {
-        DiyyStartupSplash()
+        DiyyStartupSplash(modifier = Modifier.graphicsLayer { alpha = splashAlpha })
         return
     }
 
@@ -134,7 +144,7 @@ fun DiyyMusicRoot(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             AnimatedVisibility(
-                visible = isMainRoute,
+                visible = showBottomBar,
                 enter = fadeIn(tween(220)) + slideInVertically(
                     animationSpec = tween(220),
                     initialOffsetY = { it / 2 },
@@ -165,7 +175,7 @@ fun DiyyMusicRoot(
     ) { innerPadding ->
         val layoutDirection = LocalLayoutDirection.current
         val animatedBottomPadding by animateDpAsState(
-            targetValue = if (isMainRoute) innerPadding.calculateBottomPadding() else 0.dp,
+            targetValue = if (showBottomBar) innerPadding.calculateBottomPadding() else 0.dp,
             animationSpec = tween(180),
             label = "navBottomPadding",
         )
@@ -180,7 +190,7 @@ fun DiyyMusicRoot(
             ),
         ) {
             composable(DiyyMainTab.LISTEN_NOW.route) {
-                DiyyPageMotion {
+                DiyyTabMotion {
                     ListenNowScreen(
                         playerConnection = playerConnection,
                         onOpenProfile = { navigateToTab(navController, DiyyMainTab.PROFILE) },
@@ -190,7 +200,7 @@ fun DiyyMusicRoot(
                 }
             }
             composable(DiyyMainTab.SEARCH.route) {
-                DiyyPageMotion {
+                DiyyTabMotion {
                     SearchScreen(
                         playerConnection = playerConnection,
                         initialQuery = searchSeed,
@@ -199,7 +209,7 @@ fun DiyyMusicRoot(
                 }
             }
             composable(DiyyMainTab.LIBRARY.route) {
-                DiyyPageMotion {
+                DiyyTabMotion {
                     LibraryScreen(
                         database = database,
                         playerConnection = playerConnection,
@@ -211,7 +221,7 @@ fun DiyyMusicRoot(
                 }
             }
             composable(DiyyMainTab.PROFILE.route) {
-                DiyyPageMotion {
+                DiyyTabMotion {
                     ProfileScreen(
                         database = database,
                         onBack = null,
@@ -338,7 +348,7 @@ private fun rememberMiniPlayerProgress(playerConnection: PlayerConnection?): Flo
 
 
 @Composable
-private fun DiyyStartupSplash() {
+private fun DiyyStartupSplash(modifier: Modifier = Modifier) {
     val transition = rememberInfiniteTransition(label = "startupPulse")
     val pulse by transition.animateFloat(
         initialValue = 0.96f,
@@ -351,7 +361,7 @@ private fun DiyyStartupSplash() {
     )
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center,
