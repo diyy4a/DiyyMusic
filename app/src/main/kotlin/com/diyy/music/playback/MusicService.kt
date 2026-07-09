@@ -1599,6 +1599,32 @@ class MusicService :
         val currentMediaId = currentMediaMetadata.id
 
         scope.launch(SilentHandler) {
+            val existingIds = (0 until player.mediaItemCount)
+                .map { index -> player.getMediaItemAt(index).mediaId }
+                .toSet()
+
+            // Prefer a locally personalized mix (same artist, weighted by likes/play time)
+            // before falling back to an online recommendation call.
+            val localItems = withContext(Dispatchers.IO) {
+                runCatching {
+                    buildLocalMatchQueue(database, currentMediaMetadata, existingIds)
+                }.getOrDefault(emptyList())
+            }
+
+            if (localItems.size >= LOCAL_RADIO_MIN_ITEMS) {
+                val itemCount = player.mediaItemCount
+                if (itemCount > currentIndex + 1) {
+                    player.removeMediaItems(currentIndex + 1, itemCount)
+                }
+                player.addMediaItems(currentIndex + 1, localItems)
+                if (player.shuffleModeEnabled) {
+                    val shufflePlaylistFirst = dataStore.get(ShufflePlaylistFirstKey, false)
+                    applyShuffleOrder(player.currentMediaItemIndex, player.mediaItemCount, shufflePlaylistFirst)
+                }
+                queueTitle = "Matching your library"
+                return@launch
+            }
+
             // Use simple videoId to let YouTube personalize recommendations
             val radioQueue =
                 YouTubeQueue(
@@ -1704,6 +1730,27 @@ class MusicService :
             val existingIds = (0 until player.mediaItemCount)
                 .map { index -> player.getMediaItemAt(index).mediaId }
                 .toSet()
+
+            val localItems = withContext(Dispatchers.IO) {
+                runCatching { buildLocalMatchQueue(database, seedMetadata, existingIds) }.getOrDefault(emptyList())
+            }
+
+            if (localItems.size >= LOCAL_RADIO_MIN_ITEMS) {
+                val stillOnSeedLocal = player.currentMediaItem?.mediaId == seedId
+                if (!stillOnSeedLocal || player.hasNextMediaItem()) return@launch
+
+                player.addMediaItems(localItems)
+                queueTitle = "Matching your library"
+                Timber.tag(TAG).i("Local match: appended %d recommendations after %s", localItems.size, seedId)
+
+                if (player.playbackState == Player.STATE_ENDED && player.hasNextMediaItem()) {
+                    player.seekToNextMediaItem()
+                    player.prepare()
+                    if (castConnectionHandler?.isCasting?.value != true) player.play()
+                }
+                return@launch
+            }
+
             val radioQueue = YouTubeQueue(endpoint = WatchEndpoint(videoId = seedId))
 
             val recommendedItems = withContext(Dispatchers.IO) {
@@ -4339,6 +4386,7 @@ class MusicService :
 
     companion object {
         private const val SMART_RADIO_BATCH_SIZE = 30
+        private const val LOCAL_RADIO_MIN_ITEMS = 5
         const val ACTION_ALARM_TRIGGER = "com.diyy.music.action.ALARM_TRIGGER"
         const val EXTRA_ALARM_ID = "extra_alarm_id"
         const val EXTRA_ALARM_PLAYLIST_ID = "extra_alarm_playlist_id"

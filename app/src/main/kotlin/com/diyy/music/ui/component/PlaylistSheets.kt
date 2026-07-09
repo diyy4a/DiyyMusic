@@ -120,11 +120,21 @@ fun AddToPlaylistSheet(
     onDismiss: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
+    val sheetState = androidx.compose.material3.rememberModalBottomSheetState()
     val playlists by database.playlistsByCreateDateAsc().collectAsStateWithLifecycle(initialValue = emptyList())
     var showCreateDialog by remember { mutableStateOf(false) }
 
+    fun dismissSheet() {
+        scope.launch {
+            sheetState.hide()
+        }.invokeOnCompletion {
+            if (!sheetState.isVisible) onDismiss()
+        }
+    }
+
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = ::dismissSheet,
+        sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.99f),
         dragHandle = null,
         shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
@@ -196,7 +206,7 @@ fun AddToPlaylistSheet(
                                         addSongToPlaylist(playlist, songs.map { it.id })
                                     }
                                 }
-                                onDismiss()
+                                dismissSheet()
                             },
                         )
                     }
@@ -211,7 +221,7 @@ fun AddToPlaylistSheet(
             songsToAdd = songs,
             onDismiss = {
                 showCreateDialog = false
-                onDismiss()
+                dismissSheet()
             },
         )
     }

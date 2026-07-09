@@ -327,7 +327,6 @@ fun PlayerScreen(
             onDownload = toggleDownload,
             onLyrics = { if (playerConnection != null && metadata != null) showLyrics = true },
             onQueue = { if (playerConnection != null) showQueue = true },
-            onRadio = { playerConnection?.startRadioSeamlessly() },
             onRetryPlayback = { playerConnection?.retryPlayback() },
             onToggleFavorite = { playerConnection?.toggleLike() },
             onAddToPlaylist = { if (metadata != null) showAddToPlaylist = true },

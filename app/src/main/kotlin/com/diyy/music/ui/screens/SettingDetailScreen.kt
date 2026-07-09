@@ -2,11 +2,18 @@ package com.diyy.music.ui.screens
 
 import android.content.Context
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -122,6 +129,7 @@ import com.diyy.music.utils.rememberPreference
 import com.diyy.music.viewmodels.AccountSettingsViewModel
 import com.diyy.music.viewmodels.EqualizerSettingsViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -837,54 +845,110 @@ private fun DropdownPreferenceRow(
     }
 
     if (expanded) {
+        var contentVisible by remember { mutableStateOf(false) }
+        val scope = rememberCoroutineScope()
+        LaunchedEffect(Unit) { contentVisible = true }
+
+        fun closeDialog() {
+            contentVisible = false
+            scope.launch {
+                delay(160)
+                expanded = false
+            }
+        }
+
         Dialog(
-            onDismissRequest = { expanded = false },
+            onDismissRequest = { closeDialog() },
             properties = DialogProperties(usePlatformDefaultWidth = true),
         ) {
-            LiquidGlassBox(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(28.dp),
-                elevation = 10.dp,
+            AnimatedVisibility(
+                visible = contentVisible,
+                enter = fadeIn(tween(180)) + scaleIn(
+                    initialScale = 0.88f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMediumLow,
+                    ),
+                ),
+                exit = fadeOut(tween(140)) + scaleOut(targetScale = 0.9f, animationSpec = tween(140)),
             ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(5.dp),
+                LiquidGlassBox(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(28.dp),
+                    elevation = 10.dp,
                 ) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                    )
-                    options.forEach { (value, label) ->
-                        val active = selected == value
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(18.dp))
-                                .background(
-                                    if (active) MaterialTheme.colorScheme.primaryContainer
-                                    else MaterialTheme.colorScheme.surface.copy(alpha = 0.30f),
-                                )
-                                .clickable {
-                                    onSelected(value)
-                                    expanded = false
-                                }
-                                .padding(horizontal = 16.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = label,
-                                color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-                                modifier = Modifier.weight(1f),
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                        )
+                        options.forEach { (value, label) ->
+                            val active = selected == value
+                            val rowColor by animateColorAsState(
+                                targetValue = if (active) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.30f)
+                                },
+                                animationSpec = tween(180),
+                                label = "themeRowColor",
                             )
-                            if (active) {
-                                Icon(
-                                    painter = painterResource(R.drawable.check),
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp),
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(rowColor)
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (active) {
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                                        } else {
+                                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                        },
+                                        shape = RoundedCornerShape(18.dp),
+                                    )
+                                    .clickable {
+                                        onSelected(value)
+                                        closeDialog()
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(CircleShape)
+                                        .border(
+                                            width = 2.dp,
+                                            color = if (active) {
+                                                MaterialTheme.colorScheme.primary
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                            },
+                                            shape = CircleShape,
+                                        ),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    if (active) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(10.dp)
+                                                .clip(CircleShape)
+                                                .background(MaterialTheme.colorScheme.primary),
+                                        )
+                                    }
+                                }
+                                Spacer(Modifier.width(14.dp))
+                                Text(
+                                    text = label,
+                                    color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                                    modifier = Modifier.weight(1f),
                                 )
                             }
                         }

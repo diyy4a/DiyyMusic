@@ -92,9 +92,20 @@ fun DiyyQueueSheet(
     val queueWindows by playerConnection.queueWindows.collectAsStateWithLifecycle()
     val currentIndex by playerConnection.currentWindowIndex.collectAsStateWithLifecycle()
     val queueTitle by playerConnection.queueTitle.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    val sheetState = rememberModalBottomSheetState()
+
+    fun dismissSheet() {
+        scope.launch {
+            sheetState.hide()
+        }.invokeOnCompletion {
+            if (!sheetState.isVisible) onDismiss()
+        }
+    }
 
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = ::dismissSheet,
+        sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.98f),
         dragHandle = null,
         shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
@@ -109,7 +120,7 @@ fun DiyyQueueSheet(
                 title = queueTitle ?: "Up Next",
                 subtitle = "${queueWindows.size} songs in queue",
                 icon = R.drawable.queue_music,
-                onDismiss = onDismiss,
+                onDismiss = ::dismissSheet,
             )
 
             if (queueWindows.isEmpty()) {
@@ -978,14 +989,28 @@ fun DiyyPlayerMenuSheet(
     onDownload: () -> Unit,
     onLyrics: () -> Unit,
     onQueue: () -> Unit,
-    onRadio: () -> Unit,
     onRetryPlayback: () -> Unit,
     onToggleFavorite: () -> Unit,
     onAddToPlaylist: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val scope = rememberCoroutineScope()
+    val sheetState = rememberModalBottomSheetState()
+
+    fun dismissSheet(after: () -> Unit = {}) {
+        scope.launch {
+            sheetState.hide()
+        }.invokeOnCompletion {
+            if (!sheetState.isVisible) {
+                onDismiss()
+                after()
+            }
+        }
+    }
+
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { dismissSheet() },
+        sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.99f),
         dragHandle = null,
         shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
@@ -1000,7 +1025,7 @@ fun DiyyPlayerMenuSheet(
                 title = "Song options",
                 subtitle = "Playback actions",
                 icon = R.drawable.more_horiz,
-                onDismiss = onDismiss,
+                onDismiss = { dismissSheet() },
                 horizontalPadding = 0.dp,
             )
             MenuAction(
@@ -1020,43 +1045,37 @@ fun DiyyPlayerMenuSheet(
                     isDownloading -> "Download is in progress"
                     else -> "Save this song for offline listening"
                 },
-                onClick = { onDownload(); onDismiss() },
+                onClick = { dismissSheet(onDownload) },
             )
             MenuAction(
                 icon = R.drawable.playlist_add,
                 title = "Add to playlist",
                 subtitle = "Save this song to one of your playlists",
-                onClick = { onDismiss(); onAddToPlaylist() },
+                onClick = { dismissSheet(onAddToPlaylist) },
             )
             MenuAction(
                 icon = R.drawable.lyrics,
                 title = "Lyrics",
                 subtitle = "Open smooth synced lyrics",
-                onClick = { onDismiss(); onLyrics() },
+                onClick = { dismissSheet(onLyrics) },
             )
             MenuAction(
                 icon = R.drawable.queue_music,
                 title = "Queue",
                 subtitle = "See what plays next",
-                onClick = { onDismiss(); onQueue() },
-            )
-            MenuAction(
-                icon = R.drawable.radio,
-                title = "Start radio",
-                subtitle = "Continue with similar songs",
-                onClick = { onDismiss(); onRadio() },
+                onClick = { dismissSheet(onQueue) },
             )
             MenuAction(
                 icon = R.drawable.refresh,
                 title = "Retry playback",
                 subtitle = "Reconnect and prepare the current track",
-                onClick = { onDismiss(); onRetryPlayback() },
+                onClick = { dismissSheet(onRetryPlayback) },
             )
             MenuAction(
                 icon = if (isFavorite) R.drawable.favorite else R.drawable.favorite_border,
                 title = if (isFavorite) "Remove from favorites" else "Add to favorites",
                 subtitle = "Save this song in your library",
-                onClick = { onToggleFavorite(); onDismiss() },
+                onClick = { dismissSheet(onToggleFavorite) },
             )
         }
     }
