@@ -10,29 +10,11 @@ DiyyMusic is an open-source Android music client with a modern pink interface an
 
 - Fixed the mini-player and bottom nav bar being hidden on every screen except the 4 main tabs (playlist/album/artist/settings screens, etc.) — they now stay visible everywhere except the full player screen.
 - Fixed a leftover empty gap at the bottom of the full player screen (Scaffold was still reserving space for the mini-player/nav bar after it was hidden).
-- Main tab switches (Home / Search / Library / Profile) now slide in from the side instead of sliding up from the bottom; detail screens keep the vertical push motion.
+- Main tab switches (Home / Search / Library / Profile) now slide from the correct side depending on the direction you're navigating (e.g. Search → Home slides in from the left), instead of always sliding in from the right; detail screens keep the vertical push motion.
 - Made the startup splash fade out smoothly instead of cutting instantly to the main screen.
-- Reworked the "liquid glass" card colors so the effect is actually visible in both dark and light mode (light mode cards were nearly the same color as the page background), and added a thin top-edge highlight for a more distinct glass look.
-
-## Changes in 1.1.1
-
-- Fixed the bottom mini-player and navigation bar popping in/out abruptly when opening or closing the full player screen; it now fades and slides in sync with the page transition.
-- Fixed bottom sheets (Song options, Add to playlist, Queue) closing instantly instead of animating away.
-- Fixed the "New playlist" row in the Add to playlist sheet being misaligned instead of centered (same fix applied to the Queue row and Song options menu rows).
-- Removed the placeholder "Radio" stations screen (TuneIn-style station list) and its "Get 1 month free" promo, along with all its navigation entry points.
-- Replaced the "Start radio" action with a local-library-first matching algorithm (`LocalMatchQueue.kt`) that prioritizes songs from the same artist, weighted by likes and play time, before falling back to an online mix.
-- Redesigned the theme-mode (and similar) picker dialogs with proper radio-style rows and a spring pop-in/pop-out animation instead of a flat, instantly-appearing list.
-- Added an "Add to playlist" option to the player's Song options sheet.
-- Minor performance work: cached repeated gradient allocations in the glass card component, raised the image memory cache size, and added smooth item-placement animations to song/album/artist/queue lists.
-
-## Changes in 1.1.0
-
-- Removed the Discord Rich Presence integration entirely (service hooks, settings UI, preferences, build config, CI variables).
-- Playlists: added a "New playlist" button and dialog (Playlists screen), an "Add to playlist" button on every song row across the app (local library, downloads, albums, artists, recently played, and online search/album/playlist/artist results), and a bottom sheet to pick an existing playlist or create a new one on the fly.
-- Playlist detail screen: added drag-to-reorder (only while sorted by "Custom order"), a sort menu (custom / date added / title / artist / play time, ascending or descending), a "hide video songs" filter, and a per-song "remove from playlist" button.
-- Removed the two unused MetroList Wrapped images: `wrapped_playlistv1.png` and `wrapped_playlistv2.png`.
-- Cleaned project documentation so `README.md` is the only Markdown file.
-- Updated Codemagic and GitHub Actions artifact names to DiyyMusic 1.1.0.
+- Reworked the "liquid glass" card colors across every theme (light, dark, and pure black) so the effect is clearly visible, with a stronger tinted border and a thin top-edge highlight for a more distinct glass look.
+- Fixed the full-screen Lyrics view (and its playback controls) being hardcoded to a dark look regardless of the app's theme; it now follows the selected theme like the rest of the app.
+- Added a startup check against GitHub Releases: if a newer DiyyMusic version is published, a dialog offers to open the download, and "Later" won't ask again for that same version.
 
 ## Build with Codemagic
 

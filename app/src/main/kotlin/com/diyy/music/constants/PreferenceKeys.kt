@@ -179,6 +179,8 @@ val StreamSourceIOSKey = booleanPreferencesKey("streamSourceIOS")
 val StreamSourceWebCreatorKey = booleanPreferencesKey("streamSourceWebCreator")
 val StreamSourceAndroidCreatorKey = booleanPreferencesKey("streamSourceAndroidCreator")
 
+val DismissedUpdateVersionKey = stringPreferencesKey("dismissedUpdateVersion")
+
 // Google Cast
 val EnableGoogleCastKey = booleanPreferencesKey("enableGoogleCast")
 

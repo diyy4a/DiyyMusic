@@ -100,22 +100,22 @@ fun LiquidGlassBox(
     val intensity = ui.glassIntensity.coerceIn(0.2f, 1f)
     val softness = ui.glassSoftness.coerceIn(0f, 1f)
     val top = if (dark) {
-        Color(0xFF322E38).copy(alpha = 0.60f + (0.34f * intensity))
+        Color(0xFF3E3848).copy(alpha = (0.72f + (0.26f * intensity)).coerceAtMost(1f))
     } else {
         Color.White.copy(alpha = (0.90f + (0.10f * intensity)).coerceAtMost(1f))
     }
     val bottom = if (dark) {
-        Color(0xFF1C1A20).copy(alpha = 0.66f + (0.30f * intensity) - (0.10f * softness))
+        Color(0xFF19171D).copy(alpha = (0.78f + (0.20f * intensity) - (0.08f * softness)).coerceIn(0f, 1f))
     } else {
         Color(0xFFF2EBF1).copy(alpha = (0.92f + (0.08f * intensity)).coerceAtMost(1f))
     }
     val border = if (dark) {
-        Color.White.copy(alpha = 0.10f + (0.14f * intensity))
+        Color(0xFFB9A9D4).copy(alpha = (0.18f + (0.20f * intensity)).coerceAtMost(1f))
     } else {
         DiyyRed.copy(alpha = 0.10f + (0.09f * intensity))
     }
     val highlight = if (dark) {
-        Color.White.copy(alpha = 0.10f + (0.10f * intensity))
+        Color.White.copy(alpha = (0.20f + (0.20f * intensity)).coerceAtMost(1f))
     } else {
         Color.White.copy(alpha = 0.85f)
     }
@@ -238,6 +238,7 @@ fun DiyyPageMotion(
 @Composable
 fun DiyyTabMotion(
     modifier: Modifier = Modifier,
+    forward: Boolean = true,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val ui = LocalDiyyUiConfig.current
@@ -262,7 +263,7 @@ fun DiyyTabMotion(
                         Spring.StiffnessMediumLow
                     },
                 ),
-                initialOffsetX = { it / 5 },
+                initialOffsetX = { if (forward) it / 5 else -it / 5 },
             )
     }
     val exitTransition = if (ui.reduceMotion) {
@@ -270,7 +271,7 @@ fun DiyyTabMotion(
     } else {
         fadeOut(tween((duration * 0.6f).toInt())) +
             slideOutHorizontally(
-                targetOffsetX = { -it / 8 },
+                targetOffsetX = { if (forward) -it / 8 else it / 8 },
                 animationSpec = tween((duration * 0.7f).toInt()),
             )
     }

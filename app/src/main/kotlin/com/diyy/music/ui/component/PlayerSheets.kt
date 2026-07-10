@@ -617,7 +617,7 @@ fun DiyyLyricsSheet(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black)
+                .background(MaterialTheme.colorScheme.background)
                 .safeDrawingPadding(),
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
@@ -636,7 +636,7 @@ fun DiyyLyricsSheet(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = metadata?.title ?: "Lyrics",
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onBackground,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
@@ -646,7 +646,7 @@ fun DiyyLyricsSheet(
                             text = metadata?.artists?.joinToString { it.name }
                                 .orEmpty()
                                 .ifBlank { "DiyyMusic" },
-                            color = Color.White.copy(alpha = 0.62f),
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.62f),
                             style = MaterialTheme.typography.bodySmall,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -667,7 +667,7 @@ fun DiyyLyricsSheet(
                         modifier = Modifier.fillMaxWidth().weight(1f),
                         contentAlignment = Alignment.Center,
                     ) {
-                        CircularProgressIndicator(color = Color.White)
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                     activeLyrics.lyrics == LyricsEntity.LYRICS_NOT_FOUND || lines.isEmpty() ->
                         LyricsMessage("Lyrics not found for this song")
@@ -734,7 +734,7 @@ private fun ColumnScope.LyricsMessage(message: String) {
     ) {
         Text(
             text = message,
-            color = Color.White.copy(alpha = 0.78f),
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.78f),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
@@ -796,7 +796,7 @@ private fun FullLyricsPlayerDock(
                 Spacer(Modifier.weight(1f))
                 Text(
                     text = formatLyricsTime(durationMs),
-                    color = Color.White.copy(alpha = 0.60f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelSmall,
                 )
             }
@@ -876,7 +876,7 @@ private fun FullLyricsControlButton(
             Icon(
                 painter = painterResource(icon),
                 contentDescription = contentDescription,
-                tint = if (active) DiyyRed else Color.White.copy(alpha = 0.86f),
+                tint = if (active) DiyyRed else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.86f),
                 modifier = Modifier.size((size * 0.48f).dp),
             )
         }
@@ -928,7 +928,7 @@ private fun FullLyricsTrackSlider(
                 .fillMaxWidth()
                 .height(4.dp)
                 .clip(RoundedCornerShape(999.dp))
-                .background(Color.White.copy(alpha = 0.15f)),
+                .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.15f)),
         )
         if (fraction > 0f) {
             Box(
@@ -970,7 +970,7 @@ private fun SpotifyLyricLine(
 
     Text(
         text = line.text,
-        color = Color.White.copy(alpha = alpha),
+        color = MaterialTheme.colorScheme.onBackground.copy(alpha = alpha),
         fontSize = 24.sp,
         lineHeight = 31.sp,
         fontWeight = if (active) FontWeight.ExtraBold else FontWeight.Bold,

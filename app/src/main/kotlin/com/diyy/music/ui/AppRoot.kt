@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -38,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -52,6 +54,7 @@ import com.diyy.music.constants.AccountChannelHandleKey
 import com.diyy.music.constants.AccountEmailKey
 import com.diyy.music.constants.AccountNameKey
 import com.diyy.music.constants.DataSyncIdKey
+import com.diyy.music.constants.DismissedUpdateVersionKey
 import com.diyy.music.constants.InnerTubeCookieKey
 import com.diyy.music.db.MusicDatabase
 import com.diyy.music.models.MediaMetadata
@@ -62,6 +65,7 @@ import com.diyy.music.ui.component.DiyyBrandMark
 import com.diyy.music.ui.component.DiyyMiniPlayer
 import com.diyy.music.ui.component.DiyyPageMotion
 import com.diyy.music.ui.component.DiyyTabMotion
+import com.diyy.music.ui.component.UpdateAvailableDialog
 import com.diyy.music.ui.screens.CollectionScreen
 import com.diyy.music.ui.screens.HistoryScreen
 import com.diyy.music.ui.screens.LibraryDisplayScreen
@@ -75,7 +79,11 @@ import com.diyy.music.ui.screens.SettingDetailScreen
 import com.diyy.music.ui.screens.SettingsScreen
 import com.diyy.music.ui.theme.DiyyRed
 import com.diyy.music.utils.dataStore
+import com.diyy.music.utils.ReleaseInfo
+import com.diyy.music.utils.Updater
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 @Composable
@@ -93,6 +101,9 @@ fun DiyyMusicRoot(
     val isMainRoute = DiyyMainTab.entries.any { it.route == currentRoute }
     val showBottomBar = currentRoute != DiyyRoutes.PLAYER && currentRoute != DiyyRoutes.LOGIN
     val currentTab = DiyyMainTab.entries.firstOrNull { it.route == currentRoute } ?: DiyyMainTab.LISTEN_NOW
+    var previousTabIndex by remember { mutableIntStateOf(currentTab.ordinal) }
+    val movingForward = currentTab.ordinal >= previousTabIndex
+    LaunchedEffect(currentTab) { previousTabIndex = currentTab.ordinal }
 
     val metadataState = playerConnection?.mediaMetadata?.collectAsStateWithLifecycle()
         ?: remember { mutableStateOf<MediaMetadata?>(null) }
@@ -122,6 +133,24 @@ fun DiyyMusicRoot(
     if (showStartupSplash) {
         DiyyStartupSplash(modifier = Modifier.graphicsLayer { alpha = splashAlpha })
         return
+    }
+
+    var availableUpdate by remember { mutableStateOf<ReleaseInfo?>(null) }
+    val uriHandler = LocalUriHandler.current
+
+    LaunchedEffect(Unit) {
+        runCatching {
+            val result = Updater.checkForUpdate()
+            val (release, hasUpdate) = result.getOrNull() ?: return@LaunchedEffect
+            if (release == null || !hasUpdate) return@LaunchedEffect
+
+            val dismissedVersion = context.dataStore.data
+                .map { it[DismissedUpdateVersionKey] }
+                .first()
+            if (dismissedVersion != release.versionName) {
+                availableUpdate = release
+            }
+        }
     }
 
     LaunchedEffect(requestedRoute) {
@@ -190,7 +219,7 @@ fun DiyyMusicRoot(
             ),
         ) {
             composable(DiyyMainTab.LISTEN_NOW.route) {
-                DiyyTabMotion {
+                DiyyTabMotion(forward = movingForward) {
                     ListenNowScreen(
                         playerConnection = playerConnection,
                         onOpenProfile = { navigateToTab(navController, DiyyMainTab.PROFILE) },
@@ -200,7 +229,7 @@ fun DiyyMusicRoot(
                 }
             }
             composable(DiyyMainTab.SEARCH.route) {
-                DiyyTabMotion {
+                DiyyTabMotion(forward = movingForward) {
                     SearchScreen(
                         playerConnection = playerConnection,
                         initialQuery = searchSeed,
@@ -209,7 +238,7 @@ fun DiyyMusicRoot(
                 }
             }
             composable(DiyyMainTab.LIBRARY.route) {
-                DiyyTabMotion {
+                DiyyTabMotion(forward = movingForward) {
                     LibraryScreen(
                         database = database,
                         playerConnection = playerConnection,
@@ -221,7 +250,7 @@ fun DiyyMusicRoot(
                 }
             }
             composable(DiyyMainTab.PROFILE.route) {
-                DiyyTabMotion {
+                DiyyTabMotion(forward = movingForward) {
                     ProfileScreen(
                         database = database,
                         onBack = null,
@@ -313,6 +342,24 @@ fun DiyyMusicRoot(
                 }
             }
         }
+    }
+
+    availableUpdate?.let { release ->
+        UpdateAvailableDialog(
+            release = release,
+            onDownload = {
+                val url = Updater.getDownloadUrlForCurrentVariant(release)
+                    ?: "https://github.com/diyy4a/DiyyMusic/releases/tag/${release.tagName}"
+                runCatching { uriHandler.openUri(url) }
+                availableUpdate = null
+            },
+            onDismiss = {
+                scope.launch {
+                    context.dataStore.edit { prefs -> prefs[DismissedUpdateVersionKey] = release.versionName }
+                }
+                availableUpdate = null
+            },
+        )
     }
 }
 
