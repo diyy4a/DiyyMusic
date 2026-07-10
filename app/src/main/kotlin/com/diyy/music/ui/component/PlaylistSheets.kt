@@ -28,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -48,6 +49,7 @@ import com.diyy.music.db.MusicDatabase
 import com.diyy.music.db.entities.Playlist
 import com.diyy.music.db.entities.PlaylistEntity
 import com.diyy.music.models.MediaMetadata
+import com.diyy.music.ui.theme.DiyyRed
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
@@ -75,8 +77,17 @@ fun CreatePlaylistDialog(
                 value = name,
                 onValueChange = { name = it },
                 singleLine = true,
-                placeholder = { Text("Playlist name") },
-                shape = RoundedCornerShape(14.dp),
+                label = { Text("Playlist name") },
+                placeholder = { Text("e.g. Weekend Vibes") },
+                leadingIcon = {
+                    Icon(painterResource(R.drawable.queue_music), contentDescription = null)
+                },
+                shape = RoundedCornerShape(16.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = DiyyRed,
+                    focusedLabelColor = DiyyRed,
+                    cursorColor = DiyyRed,
+                ),
                 modifier = Modifier.fillMaxWidth(),
             )
         },

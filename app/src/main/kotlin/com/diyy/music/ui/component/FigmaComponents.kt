@@ -154,7 +154,7 @@ fun LiquidGlassBox(
                 scaleY = scale
                 alpha = if (pressed && onClick != null) 0.97f else 1f
             }
-            .shadow(effectiveElevation, shape, clip = false)
+            .shadow(effectiveElevation, shape, clip = true)
             .clip(shape)
             .background(backgroundBrush)
             .border(1.dp, border, shape)

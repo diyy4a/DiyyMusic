@@ -766,9 +766,9 @@ private fun FullLyricsPlayerDock(
     LiquidGlassBox(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(28.dp),
-        elevation = 9.dp,
+            .padding(horizontal = 14.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(26.dp),
+        elevation = 12.dp,
     ) {
         Column(
             modifier = Modifier

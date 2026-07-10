@@ -2,6 +2,8 @@ package com.diyy.music.ui
 
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
@@ -217,6 +219,10 @@ fun DiyyMusicRoot(
                 end = innerPadding.calculateEndPadding(layoutDirection),
                 bottom = animatedBottomPadding,
             ),
+            enterTransition = { EnterTransition.None },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { ExitTransition.None },
         ) {
             composable(DiyyMainTab.LISTEN_NOW.route) {
                 DiyyTabMotion(forward = movingForward) {
