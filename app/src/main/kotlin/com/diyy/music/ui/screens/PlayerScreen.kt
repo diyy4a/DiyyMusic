@@ -24,6 +24,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Repeat
+import androidx.compose.material.icons.rounded.RepeatOne
+import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -50,6 +58,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
@@ -415,14 +424,14 @@ private fun PlayerControlsDock(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 SimplePlayerButton(
-                    icon = if (shuffleEnabled) R.drawable.shuffle_on else R.drawable.shuffle,
+                    icon = Icons.Rounded.Shuffle,
                     contentDescription = "Shuffle",
                     active = shuffleEnabled,
                     size = if (tiny) 36 else 40,
                     onClick = { playerConnection?.toggleShuffle() },
                 )
                 SimplePlayerButton(
-                    icon = R.drawable.skip_previous,
+                    icon = Icons.Rounded.SkipPrevious,
                     contentDescription = "Previous",
                     size = if (tiny) 44 else 48,
                     onClick = { playerConnection?.seekToPrevious() },
@@ -445,7 +454,7 @@ private fun PlayerControlsDock(
                             label = "playPauseIcon",
                         ) { playing ->
                             Icon(
-                                painter = painterResource(if (playing) R.drawable.pause else R.drawable.play),
+                                imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                                 contentDescription = if (playing) "Pause" else "Play",
                                 tint = Color.White,
                                 modifier = Modifier.size(if (tiny) 27.dp else 30.dp),
@@ -454,17 +463,13 @@ private fun PlayerControlsDock(
                     }
                 }
                 SimplePlayerButton(
-                    icon = R.drawable.skip_next,
+                    icon = Icons.Rounded.SkipNext,
                     contentDescription = "Next",
                     size = if (tiny) 44 else 48,
                     onClick = { playerConnection?.seekToNext() },
                 )
                 SimplePlayerButton(
-                    icon = when (repeatMode) {
-                        Player.REPEAT_MODE_ONE -> R.drawable.repeat_one_on
-                        Player.REPEAT_MODE_ALL -> R.drawable.repeat_on
-                        else -> R.drawable.repeat
-                    },
+                    icon = if (repeatMode == Player.REPEAT_MODE_ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
                     contentDescription = "Repeat",
                     active = repeatMode != Player.REPEAT_MODE_OFF,
                     size = if (tiny) 36 else 40,
@@ -587,7 +592,7 @@ private fun toggleSongDownload(
 
 @Composable
 private fun SimplePlayerButton(
-    icon: Int,
+    icon: ImageVector,
     contentDescription: String,
     size: Int,
     active: Boolean = false,
@@ -602,7 +607,7 @@ private fun SimplePlayerButton(
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
-                painter = painterResource(icon),
+                imageVector = icon,
                 contentDescription = contentDescription,
                 tint = if (active) DiyyRed else MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.size((size * 0.46f).dp),

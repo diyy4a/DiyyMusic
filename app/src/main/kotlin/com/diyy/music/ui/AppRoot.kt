@@ -13,6 +13,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -23,11 +24,14 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.padding
@@ -45,6 +49,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -184,6 +190,7 @@ fun DiyyMusicRoot(
         bottomBar = {
             AnimatedVisibility(
                 visible = showBottomBar,
+                modifier = Modifier.background(Color.Transparent),
                 enter = fadeIn(tween(220)) + slideInVertically(
                     animationSpec = tween(220),
                     initialOffsetY = { it / 2 },
@@ -193,7 +200,7 @@ fun DiyyMusicRoot(
                     targetOffsetY = { it / 2 },
                 ),
             ) {
-                Column {
+                Column(modifier = Modifier.background(Color.Transparent)) {
                     if (metadata != null) {
                         DiyyMiniPlayer(
                             metadata = metadata,
@@ -441,13 +448,30 @@ private fun rememberMiniPlayerProgress(playerConnection: PlayerConnection?): Flo
 private fun DiyyStartupSplash(modifier: Modifier = Modifier) {
     val transition = rememberInfiniteTransition(label = "startupPulse")
     val pulse by transition.animateFloat(
-        initialValue = 0.96f,
-        targetValue = 1.045f,
+        initialValue = 0.97f,
+        targetValue = 1.035f,
         animationSpec = infiniteRepeatable(
-            animation = tween(850),
+            animation = tween(1100, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse,
         ),
         label = "startupLogoScale",
+    )
+    val glowAlpha by transition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 0.65f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "startupGlow",
+    )
+
+    var entered by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { entered = true }
+    val entrance by animateFloatAsState(
+        targetValue = if (entered) 1f else 0f,
+        animationSpec = tween(560, easing = FastOutSlowInEasing),
+        label = "startupEntrance",
     )
 
     Box(
@@ -456,20 +480,54 @@ private fun DiyyStartupSplash(modifier: Modifier = Modifier) {
             .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center,
     ) {
+        // Soft brand-colored glow breathing behind the logo.
+        Box(
+            modifier = Modifier
+                .size(280.dp)
+                .graphicsLayer { alpha = entrance }
+                .background(
+                    Brush.radialGradient(
+                        listOf(DiyyRed.copy(alpha = glowAlpha * 0.35f), Color.Transparent),
+                    ),
+                ),
+        )
+
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             DiyyBrandMark(
                 modifier = Modifier.graphicsLayer {
-                    scaleX = pulse
-                    scaleY = pulse
-                    alpha = 0.92f + ((pulse - 0.96f) * 1.2f)
+                    scaleX = pulse * (0.85f + 0.15f * entrance)
+                    scaleY = pulse * (0.85f + 0.15f * entrance)
+                    alpha = entrance
+                    translationY = (1f - entrance) * 18f
                 },
                 showName = true,
             )
-            CircularProgressIndicator(
-                modifier = Modifier.padding(top = 22.dp).size(24.dp),
-                color = DiyyRed,
-                strokeWidth = 2.5.dp,
-            )
+            Spacer(Modifier.height(30.dp))
+            Row(
+                modifier = Modifier.graphicsLayer { alpha = entrance },
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                repeat(3) { index ->
+                    val dotScale by transition.animateFloat(
+                        initialValue = 0.5f,
+                        targetValue = 1f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(600, delayMillis = index * 140, easing = FastOutSlowInEasing),
+                            repeatMode = RepeatMode.Reverse,
+                        ),
+                        label = "startupDot$index",
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .graphicsLayer {
+                                scaleX = dotScale
+                                scaleY = dotScale
+                            }
+                            .background(DiyyRed, CircleShape),
+                    )
+                }
+            }
         }
     }
 }

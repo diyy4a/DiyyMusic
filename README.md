@@ -4,22 +4,22 @@ DiyyMusic is an open-source Android music client with a modern pink interface an
 
 ## Current release
 
-**DiyyMusic 1.1.3** (`versionCode 35`)
+**DiyyMusic 1.1.4** (`versionCode 36`)
 
-## Changes in 1.1.3
+## Changes in 1.1.4
 
-- Rebuilt the main-tab switching (Home / Search / Library / Profile) from scratch: it no longer goes through `NavHost`'s own transition system (which was silently overriding the custom animation twice in a row). Tab content now uses `AnimatedContent` directly, so the slide direction is always correct — e.g. Search → Home slides in from the left, Home → Search from the right — and it isn't fighting any competing default animation anymore.
-- Fixed a doubled border/shadow on the mini-player that could look like a second faint card sitting behind the mini-player and nav bar: it had both `LiquidGlassBox`'s own edge and a second, separate outline drawn on top of it. Removed the duplicate, added a little more breathing room between the mini-player and the nav bar, and slightly lowered both components' shadow elevation.
-- Aligned the mini-player shown while viewing full lyrics with the regular mini-player's corner radius and spacing.
-- Polished the "New playlist" text field (icon, floating label, brand-colored focus state) and other input/option rows.
-- Carried forward from 1.1.2: mini-player/nav bar visible on every screen except the full player, no more gap at the bottom of the player screen, smoother startup splash, more visible "liquid glass" cards in every theme, theme-aware full-screen Lyrics view, and a GitHub Releases update-check dialog on launch.
+- Forced fully transparent backgrounds at every wrapper level around the mini-player/nav bar to rule out any remaining stray fill behind them.
+- Redesigned the startup splash: entrance animation for the logo, a soft breathing brand-colored glow, and a custom three-dot loading indicator instead of a generic spinner.
+- Actually matched the full-lyrics playback dock's size to the real player screen's controls this time (previous attempt matched it to the wrong reference — the mini-player — instead of the real `PlayerControlsDock`).
+- Started modernizing the icon set with Material Symbols Rounded (a softer, more rounded style closer to Apple Music's look) on the most visible surfaces: bottom navigation, mini-player, and both playback control docks (full player and full lyrics). The rest of the app's icons are unchanged for now — swapping every icon in the app is a large, ongoing job; let me know if you'd like it continued screen by screen.
+- Carried forward from 1.1.3: main-tab switching rebuilt on `AnimatedContent` for reliable slide direction, and the doubled mini-player border/shadow fix.
 
 ## Build with Codemagic
 
-Push the project to the `main` branch and run the **DiyyMusic v1.1.3 APK** workflow. The generated artifact is:
+Push the project to the `main` branch and run the **DiyyMusic v1.1.4 APK** workflow. The generated artifact is:
 
 ```text
-DiyyMusic-v1.1.3-universal.apk
+DiyyMusic-v1.1.4-universal.apk
 ```
 
 ## Build locally

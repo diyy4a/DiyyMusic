@@ -102,8 +102,8 @@ android {
         applicationId = applicationIdOverride ?: baseApplicationId
         minSdk = 26
         targetSdk = 36
-        versionCode = 35
-        versionName = "1.1.3"
+        versionCode = 36
+        versionName = "1.1.4"
         resValue("string", "app_name", appNameOverride ?: "DiyyMusic")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -334,6 +334,7 @@ dependencies {
 
     implementation(libs.compose.runtime)
     implementation(libs.compose.foundation)
+    implementation(libs.compose.material.icons.extended)
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.util)
     implementation(libs.compose.animation)
