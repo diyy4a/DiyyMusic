@@ -1,23 +1,30 @@
 package com.diyy.music.ui
 
 import android.net.Uri
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -30,7 +37,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -66,7 +72,6 @@ import com.diyy.music.ui.component.DiyyBottomNavigation
 import com.diyy.music.ui.component.DiyyBrandMark
 import com.diyy.music.ui.component.DiyyMiniPlayer
 import com.diyy.music.ui.component.DiyyPageMotion
-import com.diyy.music.ui.component.DiyyTabMotion
 import com.diyy.music.ui.component.UpdateAvailableDialog
 import com.diyy.music.ui.screens.CollectionScreen
 import com.diyy.music.ui.screens.HistoryScreen
@@ -79,7 +84,9 @@ import com.diyy.music.ui.screens.ProfileScreen
 import com.diyy.music.ui.screens.SearchScreen
 import com.diyy.music.ui.screens.SettingDetailScreen
 import com.diyy.music.ui.screens.SettingsScreen
+import com.diyy.music.ui.theme.DiyyMotionPreset
 import com.diyy.music.ui.theme.DiyyRed
+import com.diyy.music.ui.theme.LocalDiyyUiConfig
 import com.diyy.music.utils.dataStore
 import com.diyy.music.utils.ReleaseInfo
 import com.diyy.music.utils.Updater
@@ -99,13 +106,13 @@ fun DiyyMusicRoot(
 ) {
     val navController = rememberNavController()
     val backStack by navController.currentBackStackEntryAsState()
-    val currentRoute = backStack?.destination?.route ?: DiyyMainTab.LISTEN_NOW.route
-    val isMainRoute = DiyyMainTab.entries.any { it.route == currentRoute }
+    val currentRoute = backStack?.destination?.route ?: DiyyRoutes.MAIN_TABS
     val showBottomBar = currentRoute != DiyyRoutes.PLAYER && currentRoute != DiyyRoutes.LOGIN
-    val currentTab = DiyyMainTab.entries.firstOrNull { it.route == currentRoute } ?: DiyyMainTab.LISTEN_NOW
-    var previousTabIndex by remember { mutableIntStateOf(currentTab.ordinal) }
-    val movingForward = currentTab.ordinal >= previousTabIndex
-    LaunchedEffect(currentTab) { previousTabIndex = currentTab.ordinal }
+    var currentMainTab by remember { mutableStateOf(DiyyMainTab.LISTEN_NOW) }
+    val currentTab = currentMainTab
+    val goToTab: (DiyyMainTab) -> Unit = { tab ->
+        navigateToTab(navController, tab) { currentMainTab = it }
+    }
 
     val metadataState = playerConnection?.mediaMetadata?.collectAsStateWithLifecycle()
         ?: remember { mutableStateOf<MediaMetadata?>(null) }
@@ -157,10 +164,10 @@ fun DiyyMusicRoot(
 
     LaunchedEffect(requestedRoute) {
         when (requestedRoute) {
-            "search" -> navigateToTab(navController, DiyyMainTab.SEARCH)
-            "library" -> navigateToTab(navController, DiyyMainTab.LIBRARY)
-            "profile" -> navigateToTab(navController, DiyyMainTab.PROFILE)
-            "home", "listen_now" -> navigateToTab(navController, DiyyMainTab.LISTEN_NOW)
+            "search" -> goToTab(DiyyMainTab.SEARCH)
+            "library" -> goToTab(DiyyMainTab.LIBRARY)
+            "profile" -> goToTab(DiyyMainTab.PROFILE)
+            "home", "listen_now" -> goToTab(DiyyMainTab.LISTEN_NOW)
             "player" -> navController.navigate(DiyyRoutes.PLAYER)
             else -> if (requestedRoute?.startsWith("collection/") == true) {
                 val type = requestedRoute.substringAfter("collection/")
@@ -195,10 +202,11 @@ fun DiyyMusicRoot(
                             onPlayPause = { playerConnection?.togglePlayPause() },
                             onNext = { playerConnection?.seekToNext() },
                         )
+                        Spacer(Modifier.height(8.dp))
                     }
                     DiyyBottomNavigation(
                         selected = currentTab,
-                        onSelected = { navigateToTab(navController, it) },
+                        onSelected = { goToTab(it) },
                     )
                 }
             }
@@ -212,7 +220,7 @@ fun DiyyMusicRoot(
         )
         NavHost(
             navController = navController,
-            startDestination = DiyyMainTab.LISTEN_NOW.route,
+            startDestination = DiyyRoutes.MAIN_TABS,
             modifier = Modifier.padding(
                 top = innerPadding.calculateTopPadding(),
                 start = innerPadding.calculateStartPadding(layoutDirection),
@@ -224,57 +232,83 @@ fun DiyyMusicRoot(
             popEnterTransition = { EnterTransition.None },
             popExitTransition = { ExitTransition.None },
         ) {
-            composable(DiyyMainTab.LISTEN_NOW.route) {
-                DiyyTabMotion(forward = movingForward) {
-                    ListenNowScreen(
-                        playerConnection = playerConnection,
-                        onOpenProfile = { navigateToTab(navController, DiyyMainTab.PROFILE) },
-                        onOpenHistory = { navController.navigate(DiyyRoutes.HISTORY) },
-                        onOpenCollection = { openCollection(navController, it) },
-                    )
+            composable(DiyyRoutes.MAIN_TABS) {
+                val ui = LocalDiyyUiConfig.current
+                val duration = when (ui.motionPreset) {
+                    DiyyMotionPreset.GENTLE -> 280
+                    DiyyMotionPreset.SMOOTH -> 200
+                    DiyyMotionPreset.SNAPPY -> 130
                 }
-            }
-            composable(DiyyMainTab.SEARCH.route) {
-                DiyyTabMotion(forward = movingForward) {
-                    SearchScreen(
-                        playerConnection = playerConnection,
-                        initialQuery = searchSeed,
-                        onOpenCollection = { openCollection(navController, it) },
-                    )
-                }
-            }
-            composable(DiyyMainTab.LIBRARY.route) {
-                DiyyTabMotion(forward = movingForward) {
-                    LibraryScreen(
-                        database = database,
-                        playerConnection = playerConnection,
-                        onOpenProfile = { navigateToTab(navController, DiyyMainTab.PROFILE) },
-                        onOpenHistory = { navController.navigate(DiyyRoutes.HISTORY) },
-                        onOpenCollection = { openCollection(navController, it) },
-                        onOpenDisplayOptions = { navController.navigate(DiyyRoutes.DISPLAY_OPTIONS) },
-                    )
-                }
-            }
-            composable(DiyyMainTab.PROFILE.route) {
-                DiyyTabMotion(forward = movingForward) {
-                    ProfileScreen(
-                        database = database,
-                        onBack = null,
-                        onOpenFeature = { section -> navController.navigate("feature/${Uri.encode(section)}") },
-                        onOpenCollection = { openCollection(navController, it) },
-                        onLogout = {
-                            scope.launch {
-                                context.dataStore.edit { preferences ->
-                                    preferences.remove(InnerTubeCookieKey)
-                                    preferences.remove(DataSyncIdKey)
-                                    preferences.remove(AccountNameKey)
-                                    preferences.remove(AccountEmailKey)
-                                    preferences.remove(AccountChannelHandleKey)
+                AnimatedContent(
+                    targetState = currentMainTab,
+                    transitionSpec = {
+                        val forward = targetState.ordinal >= initialState.ordinal
+                        if (ui.reduceMotion) {
+                            fadeIn(tween(90)) togetherWith fadeOut(tween(70))
+                        } else {
+                            (
+                                fadeIn(tween(duration)) +
+                                    slideInHorizontally(
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioNoBouncy,
+                                            stiffness = if (ui.motionPreset == DiyyMotionPreset.GENTLE) {
+                                                Spring.StiffnessLow
+                                            } else {
+                                                Spring.StiffnessMediumLow
+                                            },
+                                        ),
+                                        initialOffsetX = { if (forward) it / 5 else -it / 5 },
+                                    )
+                                ) togetherWith (
+                                fadeOut(tween((duration * 0.6f).toInt())) +
+                                    slideOutHorizontally(
+                                        targetOffsetX = { if (forward) -it / 8 else it / 8 },
+                                        animationSpec = tween((duration * 0.7f).toInt()),
+                                    )
+                                )
+                        }
+                    },
+                    label = "mainTabContent",
+                ) { tab ->
+                    when (tab) {
+                        DiyyMainTab.LISTEN_NOW -> ListenNowScreen(
+                            playerConnection = playerConnection,
+                            onOpenProfile = { goToTab(DiyyMainTab.PROFILE) },
+                            onOpenHistory = { navController.navigate(DiyyRoutes.HISTORY) },
+                            onOpenCollection = { openCollection(navController, it) },
+                        )
+                        DiyyMainTab.SEARCH -> SearchScreen(
+                            playerConnection = playerConnection,
+                            initialQuery = searchSeed,
+                            onOpenCollection = { openCollection(navController, it) },
+                        )
+                        DiyyMainTab.LIBRARY -> LibraryScreen(
+                            database = database,
+                            playerConnection = playerConnection,
+                            onOpenProfile = { goToTab(DiyyMainTab.PROFILE) },
+                            onOpenHistory = { navController.navigate(DiyyRoutes.HISTORY) },
+                            onOpenCollection = { openCollection(navController, it) },
+                            onOpenDisplayOptions = { navController.navigate(DiyyRoutes.DISPLAY_OPTIONS) },
+                        )
+                        DiyyMainTab.PROFILE -> ProfileScreen(
+                            database = database,
+                            onBack = null,
+                            onOpenFeature = { section -> navController.navigate("feature/${Uri.encode(section)}") },
+                            onOpenCollection = { openCollection(navController, it) },
+                            onLogout = {
+                                scope.launch {
+                                    context.dataStore.edit { preferences ->
+                                        preferences.remove(InnerTubeCookieKey)
+                                        preferences.remove(DataSyncIdKey)
+                                        preferences.remove(AccountNameKey)
+                                        preferences.remove(AccountEmailKey)
+                                        preferences.remove(AccountChannelHandleKey)
+                                    }
+                                    goToTab(DiyyMainTab.LISTEN_NOW)
                                 }
-                                navigateToTab(navController, DiyyMainTab.LISTEN_NOW)
-                            }
-                        },
-                    )
+                            },
+                        )
+                    }
                 }
             }
             composable(DiyyRoutes.PLAYER) {
@@ -369,12 +403,14 @@ fun DiyyMusicRoot(
     }
 }
 
-private fun navigateToTab(navController: NavHostController, tab: DiyyMainTab) {
-    navController.navigate(tab.route) {
-        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-        launchSingleTop = true
-        restoreState = true
+private fun navigateToTab(navController: NavHostController, tab: DiyyMainTab, onSelect: (DiyyMainTab) -> Unit) {
+    if (navController.currentDestination?.route != DiyyRoutes.MAIN_TABS) {
+        navController.navigate(DiyyRoutes.MAIN_TABS) {
+            popUpTo(navController.graph.findStartDestination().id) { inclusive = false }
+            launchSingleTop = true
+        }
     }
+    onSelect(tab)
 }
 
 private fun openCollection(navController: NavHostController, type: String) {

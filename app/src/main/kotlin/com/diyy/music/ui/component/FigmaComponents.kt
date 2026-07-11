@@ -16,7 +16,6 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -480,7 +479,7 @@ fun DiyyBottomNavigation(
                 .fillMaxWidth()
                 .height(76.dp),
             shape = RoundedCornerShape(30.dp),
-            elevation = 14.dp,
+            elevation = 10.dp,
         ) {
             Row(
                 modifier = Modifier.fillMaxSize(),
@@ -575,15 +574,9 @@ fun DiyyMiniPlayer(
         LiquidGlassBox(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(78.dp)
-                .then(
-                    if (showOutline) Modifier.border(
-                        BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)),
-                        RoundedCornerShape(26.dp),
-                    ) else Modifier,
-                ),
+                .height(78.dp),
             shape = RoundedCornerShape(26.dp),
-            elevation = 12.dp,
+            elevation = if (showOutline) 12.dp else 8.dp,
             onClick = onOpen,
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
