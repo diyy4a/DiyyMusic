@@ -11,7 +11,7 @@ DiyyMusic is an open-source Android music client with a modern pink interface an
 - Forced fully transparent backgrounds at every wrapper level around the mini-player/nav bar to rule out any remaining stray fill behind them.
 - Redesigned the startup splash: entrance animation for the logo, a soft breathing brand-colored glow, and a custom three-dot loading indicator instead of a generic spinner.
 - Actually matched the full-lyrics playback dock's size to the real player screen's controls this time (previous attempt matched it to the wrong reference — the mini-player — instead of the real `PlayerControlsDock`).
-- Started modernizing the icon set with Material Symbols Rounded (a softer, more rounded style closer to Apple Music's look) on the most visible surfaces: bottom navigation, mini-player, and both playback control docks (full player and full lyrics). The rest of the app's icons are unchanged for now — swapping every icon in the app is a large, ongoing job; let me know if you'd like it continued screen by screen.
+- Redrew the most visible icons (bottom nav, mini-player, and both playback control docks) by hand as new vector drawables in a softer, more rounded style — no external icon library needed, so there's no dependency-version risk this time.
 - Carried forward from 1.1.3: main-tab switching rebuilt on `AnimatedContent` for reliable slide direction, and the doubled mini-player border/shadow fix.
 
 ## Build with Codemagic

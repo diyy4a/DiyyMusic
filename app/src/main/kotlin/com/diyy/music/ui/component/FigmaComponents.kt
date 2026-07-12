@@ -45,18 +45,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.LibraryMusic
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.LibraryMusic
-import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.SkipNext
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -75,7 +63,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -296,13 +283,6 @@ fun DiyyTabMotion(
     ) {
         Box(modifier = Modifier.fillMaxSize(), content = content)
     }
-}
-
-private fun diyyTabIcon(tab: DiyyMainTab, active: Boolean): ImageVector = when (tab) {
-    DiyyMainTab.LISTEN_NOW -> if (active) Icons.Rounded.Home else Icons.Outlined.Home
-    DiyyMainTab.SEARCH -> if (active) Icons.Rounded.Search else Icons.Outlined.Search
-    DiyyMainTab.LIBRARY -> if (active) Icons.Rounded.LibraryMusic else Icons.Outlined.LibraryMusic
-    DiyyMainTab.PROFILE -> if (active) Icons.Rounded.Person else Icons.Outlined.Person
 }
 
 @Composable
@@ -550,7 +530,7 @@ fun DiyyBottomNavigation(
                                 )
                             }
                             Icon(
-                                imageVector = diyyTabIcon(tab, active),
+                                painter = painterResource(if (active) tab.selectedIcon else tab.unselectedIcon),
                                 contentDescription = tab.label,
                                 tint = tint,
                                 modifier = Modifier.size(22.dp),
@@ -638,7 +618,7 @@ fun DiyyMiniPlayer(
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
-                                        imageVector = if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                        painter = painterResource(if (playing) R.drawable.pause else R.drawable.play),
                                         contentDescription = if (playing) "Pause" else "Play",
                                         tint = Color.White,
                                         modifier = Modifier.size(23.dp),
@@ -649,7 +629,7 @@ fun DiyyMiniPlayer(
                     }
                     IconButton(onClick = onNext, enabled = metadata != null) {
                         Icon(
-                            imageVector = Icons.Rounded.SkipNext,
+                            painter = painterResource(R.drawable.skip_next),
                             contentDescription = "Next",
                             tint = if (metadata == null) MaterialTheme.colorScheme.outline else DiyyRed,
                             modifier = Modifier.size(25.dp),

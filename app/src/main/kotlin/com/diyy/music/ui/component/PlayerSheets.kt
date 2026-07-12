@@ -31,14 +31,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Repeat
-import androidx.compose.material.icons.rounded.RepeatOne
-import androidx.compose.material.icons.rounded.Shuffle
-import androidx.compose.material.icons.rounded.SkipNext
-import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -67,7 +59,6 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -817,14 +808,14 @@ private fun FullLyricsPlayerDock(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 FullLyricsControlButton(
-                    icon = Icons.Rounded.Shuffle,
+                    icon = if (shuffleEnabled) R.drawable.shuffle_on else R.drawable.shuffle,
                     contentDescription = "Shuffle",
                     active = shuffleEnabled,
                     size = 40,
                     onClick = playerConnection::toggleShuffle,
                 )
                 FullLyricsControlButton(
-                    icon = Icons.Rounded.SkipPrevious,
+                    icon = R.drawable.skip_previous,
                     contentDescription = "Previous",
                     size = 46,
                     onClick = playerConnection::seekToPrevious,
@@ -838,7 +829,7 @@ private fun FullLyricsPlayerDock(
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                            painter = painterResource(if (isPlaying) R.drawable.pause else R.drawable.play),
                             contentDescription = if (isPlaying) "Pause" else "Play",
                             tint = Color.White,
                             modifier = Modifier.size(29.dp),
@@ -846,13 +837,17 @@ private fun FullLyricsPlayerDock(
                     }
                 }
                 FullLyricsControlButton(
-                    icon = Icons.Rounded.SkipNext,
+                    icon = R.drawable.skip_next,
                     contentDescription = "Next",
                     size = 46,
                     onClick = playerConnection::seekToNext,
                 )
                 FullLyricsControlButton(
-                    icon = if (repeatMode == Player.REPEAT_MODE_ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
+                    icon = when (repeatMode) {
+                        Player.REPEAT_MODE_ONE -> R.drawable.repeat_one_on
+                        Player.REPEAT_MODE_ALL -> R.drawable.repeat_on
+                        else -> R.drawable.repeat
+                    },
                     contentDescription = "Repeat",
                     active = repeatMode != Player.REPEAT_MODE_OFF,
                     size = 40,
@@ -865,7 +860,7 @@ private fun FullLyricsPlayerDock(
 
 @Composable
 private fun FullLyricsControlButton(
-    icon: ImageVector,
+    icon: Int,
     contentDescription: String,
     size: Int,
     active: Boolean = false,
@@ -879,7 +874,7 @@ private fun FullLyricsControlButton(
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
-                imageVector = icon,
+                painter = painterResource(icon),
                 contentDescription = contentDescription,
                 tint = if (active) DiyyRed else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.86f),
                 modifier = Modifier.size((size * 0.48f).dp),
