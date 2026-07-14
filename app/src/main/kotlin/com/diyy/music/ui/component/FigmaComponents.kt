@@ -12,9 +12,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -216,62 +214,6 @@ fun DiyyPageMotion(
             slideOutVertically(
                 targetOffsetY = { -it / 36 },
                 animationSpec = tween((duration * 0.75f).toInt()),
-            )
-    }
-
-    AnimatedVisibility(
-        visible = visible,
-        modifier = modifier.fillMaxSize(),
-        enter = enterTransition,
-        exit = exitTransition,
-    ) {
-        Box(modifier = Modifier.fillMaxSize(), content = content)
-    }
-}
-
-/**
- * Horizontal slide used specifically for switching between the main bottom-nav tabs
- * (Home / Search / Library / Profile), instead of the vertical push motion used for
- * detail screens.
- */
-@Composable
-fun DiyyTabMotion(
-    modifier: Modifier = Modifier,
-    forward: Boolean = true,
-    content: @Composable BoxScope.() -> Unit,
-) {
-    val ui = LocalDiyyUiConfig.current
-    var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { visible = true }
-
-    val duration = when (ui.motionPreset) {
-        DiyyMotionPreset.GENTLE -> 280
-        DiyyMotionPreset.SMOOTH -> 200
-        DiyyMotionPreset.SNAPPY -> 130
-    }
-    val enterTransition = if (ui.reduceMotion) {
-        fadeIn(tween(90))
-    } else {
-        fadeIn(tween(duration)) +
-            slideInHorizontally(
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = if (ui.motionPreset == DiyyMotionPreset.GENTLE) {
-                        Spring.StiffnessLow
-                    } else {
-                        Spring.StiffnessMediumLow
-                    },
-                ),
-                initialOffsetX = { if (forward) it / 5 else -it / 5 },
-            )
-    }
-    val exitTransition = if (ui.reduceMotion) {
-        fadeOut(tween(70))
-    } else {
-        fadeOut(tween((duration * 0.6f).toInt())) +
-            slideOutHorizontally(
-                targetOffsetX = { if (forward) -it / 8 else it / 8 },
-                animationSpec = tween((duration * 0.7f).toInt()),
             )
     }
 
