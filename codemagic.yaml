@@ -1,6 +1,6 @@
 workflows:
   diyymusic-installable-apk:
-    name: DiyyMusic v1.1.5 APK
+    name: DiyyMusic v1.1.6 APK
     instance_type: mac_mini_m2
     max_build_duration: 120
 
@@ -68,7 +68,7 @@ workflows:
             exit 1
           fi
           mkdir -p build-artifacts
-          cp "$APK_PATH" "build-artifacts/DiyyMusic-v1.1.5-universal.apk"
+          cp "$APK_PATH" "build-artifacts/DiyyMusic-v1.1.6-universal.apk"
           ls -lh build-artifacts/
 
     artifacts:

@@ -84,6 +84,12 @@ import com.diyy.music.ui.theme.isDiyyDarkTheme
 import com.diyy.music.utils.dataStore
 import kotlinx.coroutines.flow.map
 
+private class DiyyGlassColors(
+    val border: Color,
+    val backgroundBrush: Brush,
+    val highlightBrush: Brush,
+)
+
 @Composable
 fun LiquidGlassBox(
     modifier: Modifier = Modifier,
@@ -96,26 +102,39 @@ fun LiquidGlassBox(
     val ui = LocalDiyyUiConfig.current
     val intensity = ui.glassIntensity.coerceIn(0.2f, 1f)
     val softness = ui.glassSoftness.coerceIn(0f, 1f)
-    val top = if (dark) {
-        Color(0xFF3E3848).copy(alpha = (0.72f + (0.26f * intensity)).coerceAtMost(1f))
-    } else {
-        Color.White.copy(alpha = (0.90f + (0.10f * intensity)).coerceAtMost(1f))
+
+    // Cache the derived colors/brushes: they only ever change when the theme or the
+    // glass intensity/softness settings change, not on every recomposition (e.g. scroll,
+    // press state), which matters since this component is instantiated for every row
+    // in every list.
+    val colors = remember(dark, intensity, softness) {
+        val top = if (dark) {
+            Color(0xFF3E3848).copy(alpha = (0.72f + (0.26f * intensity)).coerceAtMost(1f))
+        } else {
+            Color.White.copy(alpha = (0.90f + (0.10f * intensity)).coerceAtMost(1f))
+        }
+        val bottom = if (dark) {
+            Color(0xFF19171D).copy(alpha = (0.78f + (0.20f * intensity) - (0.08f * softness)).coerceIn(0f, 1f))
+        } else {
+            Color(0xFFF2EBF1).copy(alpha = (0.92f + (0.08f * intensity)).coerceAtMost(1f))
+        }
+        val border = if (dark) {
+            Color(0xFFB9A9D4).copy(alpha = (0.18f + (0.20f * intensity)).coerceAtMost(1f))
+        } else {
+            DiyyRed.copy(alpha = 0.10f + (0.09f * intensity))
+        }
+        val highlight = if (dark) {
+            Color.White.copy(alpha = (0.20f + (0.20f * intensity)).coerceAtMost(1f))
+        } else {
+            Color.White.copy(alpha = 0.85f)
+        }
+        val backgroundBrush = Brush.verticalGradient(listOf(top, bottom))
+        val highlightBrush = Brush.horizontalGradient(
+            listOf(highlight.copy(alpha = 0f), highlight, highlight.copy(alpha = 0f)),
+        )
+        DiyyGlassColors(border, backgroundBrush, highlightBrush)
     }
-    val bottom = if (dark) {
-        Color(0xFF19171D).copy(alpha = (0.78f + (0.20f * intensity) - (0.08f * softness)).coerceIn(0f, 1f))
-    } else {
-        Color(0xFFF2EBF1).copy(alpha = (0.92f + (0.08f * intensity)).coerceAtMost(1f))
-    }
-    val border = if (dark) {
-        Color(0xFFB9A9D4).copy(alpha = (0.18f + (0.20f * intensity)).coerceAtMost(1f))
-    } else {
-        DiyyRed.copy(alpha = 0.10f + (0.09f * intensity))
-    }
-    val highlight = if (dark) {
-        Color.White.copy(alpha = (0.20f + (0.20f * intensity)).coerceAtMost(1f))
-    } else {
-        Color.White.copy(alpha = 0.85f)
-    }
+
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val pressedScale = if (ui.reduceMotion) 1f else 0.982f
@@ -142,7 +161,15 @@ fun LiquidGlassBox(
     }
     val shadowStrength = (0.35f + (0.65f * intensity)).coerceIn(0f, 1f)
     val effectiveElevation = (elevation.value.coerceAtMost(10f) * shadowStrength).dp
-    val backgroundBrush = remember(top, bottom) { Brush.verticalGradient(listOf(top, bottom)) }
+    // A drop shadow forces an extra compositing layer per element. It's barely visible
+    // below ~6dp anyway, so skip it there entirely — this matters a lot for scroll
+    // performance since most list rows (FigmaMediaRow etc.) use a small elevation and
+    // there can be dozens of them alive at once.
+    val shadowModifier = if (effectiveElevation > 6.dp) {
+        Modifier.shadow(effectiveElevation, shape, clip = true)
+    } else {
+        Modifier.clip(shape)
+    }
 
     Box(
         modifier = modifier
@@ -151,10 +178,9 @@ fun LiquidGlassBox(
                 scaleY = scale
                 alpha = if (pressed && onClick != null) 0.97f else 1f
             }
-            .shadow(effectiveElevation, shape, clip = true)
-            .clip(shape)
-            .background(backgroundBrush)
-            .border(1.dp, border, shape)
+            .then(shadowModifier)
+            .background(colors.backgroundBrush)
+            .border(1.dp, colors.border, shape)
             .then(clickableModifier),
     ) {
         // Thin specular highlight along the top edge, the hallmark of a glass surface.
@@ -163,15 +189,7 @@ fun LiquidGlassBox(
                 .fillMaxWidth()
                 .height(1.dp)
                 .align(Alignment.TopCenter)
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(
-                            highlight.copy(alpha = 0f),
-                            highlight,
-                            highlight.copy(alpha = 0f),
-                        ),
-                    ),
-                ),
+                .background(colors.highlightBrush),
         )
         content()
     }

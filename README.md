@@ -4,21 +4,20 @@ DiyyMusic is an open-source Android music client with a modern pink interface an
 
 ## Current release
 
-**DiyyMusic 1.1.5** (`versionCode 37`)
+**DiyyMusic 1.1.6** (`versionCode 38`)
 
-## Changes in 1.1.5
+## Changes in 1.1.6
 
-- Redrew ~50 more icons by hand as new vector drawables in the same rounded, modern style (bottom nav, mini-player, and playback controls were already done in 1.1.4): common actions (close, check, add, delete, edit, share, download/upload, refresh), navigation (back/forward, chevrons), account & settings (lock, key, settings, info, history, logout/login, star), media & audio (equalizer, volume, mic, cast, lyrics, queue, playlist, library), and a batch of misc icons (album, artist, cloud, palette, security, storage, timer, trending up, and more).
-- Cleaned up the icon set: deleted 46 drawable files that were never referenced anywhere in the app (leftover duplicates and dead assets from earlier iterations), instead of leaving unused files lying around.
-- Carried forward from 1.1.4: transparent mini-player/nav background, redesigned startup splash, and the full-lyrics playback dock correctly sized to match the real player screen.
+- Performance: the "liquid glass" card used for every row in every list (songs, albums, playlists, settings, etc.) was recomputing its gradient/border/highlight colors on every recomposition and always rendering a drop shadow — the single biggest cost on long lists since shadows force an extra compositing layer per row. Colors are now cached and only recalculated when the theme or glass settings actually change, and the shadow is skipped entirely for low-elevation rows (most list items) where it was barely visible anyway. This should noticeably reduce scroll jank on longer lists (library, search results, big playlists).
+- Carried forward from 1.1.5: ~50 hand-drawn modern icons across common actions, settings, and media controls, plus removal of 46 unused drawable files.
 - Carried forward from 1.1.3: main-tab switching rebuilt on `AnimatedContent` for reliable slide direction, and the doubled mini-player border/shadow fix.
 
 ## Build with Codemagic
 
-Push the project to the `main` branch and run the **DiyyMusic v1.1.5 APK** workflow. The generated artifact is:
+Push the project to the `main` branch and run the **DiyyMusic v1.1.6 APK** workflow. The generated artifact is:
 
 ```text
-DiyyMusic-v1.1.5-universal.apk
+DiyyMusic-v1.1.6-universal.apk
 ```
 
 ## Build locally
