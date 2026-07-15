@@ -12,6 +12,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -51,6 +52,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.graphicsLayer
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -664,6 +674,7 @@ private fun PlayerAudioDetail(
                                 profile = profile,
                                 onBandGainChanged = equalizerViewModel::updateBandGain,
                                 onPreampChanged = equalizerViewModel::updatePreamp,
+                                onReset = equalizerViewModel::resetActiveProfile,
                             )
                         }
                     }
@@ -708,6 +719,7 @@ private fun EqualizerBandEditor(
     profile: SavedEQProfile,
     onBandGainChanged: (Int, Double) -> Unit,
     onPreampChanged: (Double) -> Unit,
+    onReset: () -> Unit,
 ) {
     var gains by remember(profile.id, profile.bands) {
         mutableStateOf(profile.bands.map { it.gain.toFloat() })
@@ -715,9 +727,55 @@ private fun EqualizerBandEditor(
     var preamp by remember(profile.id, profile.preamp) { mutableStateOf(profile.preamp.toFloat()) }
 
     Column(
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        EqCurveGraph(
+            gains = gains,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(110.dp),
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            profile.bands.forEachIndexed { index, band ->
+                val value = gains.getOrElse(index) { band.gain.toFloat() }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = formatGain(value.toDouble()),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    VerticalEqSlider(
+                        value = value,
+                        onValueChange = { updated ->
+                            gains = gains.toMutableList().also { list ->
+                                if (index in list.indices) list[index] = updated
+                            }
+                        },
+                        onValueChangeFinished = { onBandGainChanged(index, value.toDouble()) },
+                        valueRange = -12f..12f,
+                        height = 130.dp,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = formatFrequency(band.frequency),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+
+        FigmaDivider()
+
         Text(
             text = "Preamp",
             style = MaterialTheme.typography.bodyMedium,
@@ -741,37 +799,111 @@ private fun EqualizerBandEditor(
             )
         }
 
-        profile.bands.forEachIndexed { index, band ->
-            val value = gains.getOrElse(index) { band.gain.toFloat() }
-            Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = formatFrequency(band.frequency),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.width(54.dp),
-                    )
-                    Slider(
-                        value = value,
-                        onValueChange = { updated ->
-                            gains = gains.toMutableList().also { list ->
-                                if (index in list.indices) list[index] = updated
-                            }
-                        },
-                        onValueChangeFinished = { onBandGainChanged(index, value.toDouble()) },
-                        valueRange = -12f..12f,
-                        steps = 47,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        text = formatGain(value.toDouble()),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.width(46.dp),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.End,
+        TextButton(
+            onClick = {
+                gains = List(profile.bands.size) { 0f }
+                preamp = 0f
+                onReset()
+            },
+            modifier = Modifier.align(Alignment.End),
+        ) {
+            Text("Reset to flat")
+        }
+    }
+}
+
+/**
+ * A rotated [Slider] that reads top-to-bottom like a hardware graphic-EQ fader.
+ */
+@Composable
+private fun VerticalEqSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    onValueChangeFinished: () -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    height: Dp,
+) {
+    Slider(
+        value = value,
+        onValueChange = onValueChange,
+        onValueChangeFinished = onValueChangeFinished,
+        valueRange = valueRange,
+        modifier = Modifier
+            .width(height)
+            .graphicsLayer { rotationZ = 270f }
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(
+                    Constraints(
+                        minWidth = constraints.minHeight,
+                        maxWidth = constraints.maxHeight,
+                        minHeight = constraints.minWidth,
+                        maxHeight = constraints.maxWidth,
+                    ),
+                )
+                layout(placeable.height, placeable.width) {
+                    placeable.place(
+                        x = -(placeable.width / 2 - placeable.height / 2),
+                        y = -(placeable.height / 2 - placeable.width / 2),
                     )
                 }
+            },
+    )
+}
+
+/**
+ * Smooth response-curve visualization for the current band gains, similar to the
+ * curve shown on most dedicated graphic equalizers.
+ */
+@Composable
+private fun EqCurveGraph(gains: List<Float>, modifier: Modifier = Modifier) {
+    val lineColor = MaterialTheme.colorScheme.primary
+    val fillBrush = Brush.verticalGradient(
+        listOf(lineColor.copy(alpha = 0.28f), lineColor.copy(alpha = 0f)),
+    )
+    val gridColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f)
+
+    Canvas(modifier = modifier) {
+        if (gains.isEmpty()) return@Canvas
+        val maxGain = 12f
+        val stepX = size.width / (gains.size - 1).coerceAtLeast(1)
+
+        fun yFor(gain: Float): Float {
+            val fraction = (gain / maxGain).coerceIn(-1f, 1f)
+            return size.height / 2f - (fraction * size.height / 2f)
+        }
+
+        // Zero-dB reference line
+        drawLine(
+            color = gridColor,
+            start = Offset(0f, size.height / 2f),
+            end = Offset(size.width, size.height / 2f),
+            strokeWidth = 1.dp.toPx(),
+        )
+
+        val points = gains.mapIndexed { index, gain -> Offset(index * stepX, yFor(gain)) }
+
+        val linePath = Path().apply {
+            moveTo(points.first().x, points.first().y)
+            for (i in 0 until points.size - 1) {
+                val current = points[i]
+                val next = points[i + 1]
+                val midX = (current.x + next.x) / 2f
+                cubicTo(midX, current.y, midX, next.y, next.x, next.y)
             }
+        }
+
+        val fillPath = Path().apply {
+            addPath(linePath)
+            lineTo(points.last().x, size.height)
+            lineTo(points.first().x, size.height)
+            close()
+        }
+
+        drawPath(fillPath, brush = fillBrush)
+        drawPath(linePath, color = lineColor, style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round))
+
+        points.forEach { point ->
+            drawCircle(color = lineColor, radius = 3.dp.toPx(), center = point)
         }
     }
 }

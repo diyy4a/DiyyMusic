@@ -86,6 +86,7 @@ fun ListenNowScreen(
 ) {
     val recentEvents by viewModel.database.events().collectAsStateWithLifecycle(initialValue = emptyList())
     val quickPicks by viewModel.quickPicks.collectAsStateWithLifecycle()
+    val mixes by viewModel.mixes.collectAsStateWithLifecycle()
     val homePage by viewModel.homePage.collectAsStateWithLifecycle()
     val accountImageUrl by viewModel.accountImageUrl.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
@@ -168,6 +169,30 @@ fun ListenNowScreen(
                                 }
                             },
                             circular = item is Artist,
+                            modifier = Modifier.fillParentMaxWidth(0.41f),
+                        )
+                    }
+                }
+            }
+        }
+
+        val mixList = mixes.orEmpty()
+        if (mixList.isNotEmpty()) {
+            item {
+                FigmaSectionHeader(title = "Your Mixes")
+            }
+            item {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    items(mixList, key = { it.artist.id }) { mix ->
+                        FigmaMediaGridItem(
+                            title = "${mix.artist.title} Mix",
+                            subtitle = "${mix.songs.size} songs",
+                            imageUrl = mix.artist.thumbnailUrl,
+                            onClick = { playLocalSong(playerConnection, mix.songs, 0) },
+                            circular = true,
                             modifier = Modifier.fillParentMaxWidth(0.41f),
                         )
                     }

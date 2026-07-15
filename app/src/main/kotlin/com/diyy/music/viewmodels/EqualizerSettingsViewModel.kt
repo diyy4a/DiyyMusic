@@ -79,6 +79,18 @@ class EqualizerSettingsViewModel @Inject constructor(
         }
     }
 
+    fun resetActiveProfile() {
+        val current = activeProfile.value ?: return
+        viewModelScope.launch {
+            val updated = current.copy(
+                preamp = 0.0,
+                bands = current.bands.map { it.copy(gain = 0.0) },
+            )
+            repository.saveProfile(updated)
+            repository.setActiveProfile(updated.id)
+        }
+    }
+
     companion object {
         const val FLAT_ID = "flat"
         private val frequencies = listOf(60.0, 120.0, 250.0, 500.0, 1000.0, 2500.0, 6000.0, 12000.0)

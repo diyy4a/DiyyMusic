@@ -35,6 +35,7 @@ import com.diyy.music.constants.ShowWrappedCardKey
 import com.diyy.music.constants.WrappedSeenKey
 import com.diyy.music.db.MusicDatabase
 import com.diyy.music.db.entities.Album
+import com.diyy.music.db.entities.Artist as LocalArtist
 import com.diyy.music.db.entities.LocalItem
 import com.diyy.music.db.entities.Song
 import com.diyy.music.db.entities.SpeedDialItem
@@ -76,6 +77,11 @@ data class CommunityPlaylistItem(
     val songs: List<SongItem>
 )
 
+data class MixItem(
+    val artist: LocalArtist,
+    val songs: List<Song>,
+)
+
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     @ApplicationContext val context: Context,
@@ -96,6 +102,7 @@ class HomeViewModel @Inject constructor(
     val dailyDiscover = MutableStateFlow<List<DailyDiscoverItem>?>(null)
     val forgottenFavorites = MutableStateFlow<List<Song>?>(null)
     val keepListening = MutableStateFlow<List<LocalItem>?>(null)
+    val mixes = MutableStateFlow<List<MixItem>?>(null)
     val similarRecommendations = MutableStateFlow<List<SimilarRecommendation>?>(null)
     val accountPlaylists = MutableStateFlow<List<PlaylistItem>?>(null)
     val homePage = MutableStateFlow<HomePage?>(null)
@@ -481,6 +488,20 @@ class HomeViewModel @Inject constructor(
                 val artists = database.mostPlayedArtists(fromTimeStamp).first()
                     .filter { it.artist.isYouTubeArtist && it.artist.thumbnailUrl != null }.shuffled().take(5)
                 keepListening.value = (songs + albums + artists).shuffled()
+            }
+
+            launch(Dispatchers.IO) {
+                // "Mixes for you": a local, Spotify-Mix-style set of virtual playlists,
+                // one per top artist in the library, made purely from songs already on
+                // the device (no network calls, unlike the sections above).
+                val topArtists = database.allArtistsByPlayTime().first()
+                    .filter { it.songCount >= 4 }
+                    .take(6)
+                mixes.value = topArtists.mapNotNull { artist ->
+                    val artistSongs = database.artistSongsByPlayTimeAsc(artist.id).first()
+                    if (artistSongs.size < 4) return@mapNotNull null
+                    MixItem(artist = artist, songs = artistSongs.shuffled())
+                }
             }
 
             launch(Dispatchers.IO) {
