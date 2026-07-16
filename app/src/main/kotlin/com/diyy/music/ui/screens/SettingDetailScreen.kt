@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Constraints
@@ -92,6 +93,7 @@ import com.diyy.music.constants.AutoSkipNextOnErrorKey
 import com.diyy.music.constants.AutoplayKey
 import com.diyy.music.constants.CrossfadeDurationKey
 import com.diyy.music.constants.CrossfadeEnabledKey
+import com.diyy.music.constants.MixModeKey
 import com.diyy.music.constants.CrossfadeGaplessKey
 import com.diyy.music.constants.DarkMode
 import com.diyy.music.constants.DarkModeKey
@@ -525,6 +527,8 @@ private fun AppearanceDetail(onBack: () -> Unit, modifier: Modifier) {
     }
 }
 
+private const val MIX_SMART_CROSSFADE_SECONDS = 8f
+
 @Composable
 private fun PlayerAudioDetail(
     onBack: () -> Unit,
@@ -532,6 +536,7 @@ private fun PlayerAudioDetail(
     equalizerViewModel: EqualizerSettingsViewModel = hiltViewModel(),
 ) {
     var audioQuality by rememberPreference(AudioQualityKey, AudioQuality.AUTO.name)
+    var mixEnabled by rememberPreference(MixModeKey, false)
     var crossfadeEnabled by rememberPreference(CrossfadeEnabledKey, false)
     var crossfadeDurationPreference by rememberPreference(CrossfadeDurationKey, 5f)
     var crossfadeDuration by remember { mutableStateOf(crossfadeDurationPreference) }
@@ -548,6 +553,18 @@ private fun PlayerAudioDetail(
     }
 
     LaunchedEffect(crossfadeDurationPreference) { crossfadeDuration = crossfadeDurationPreference }
+
+    // Mix and manual Crossfade both control how one track hands off to the next, so they
+    // can't both be in charge at once. Turning Mix on takes over the transition with its
+    // own smart, longer blend and locks the manual crossfade controls; turning it off
+    // hands control back to whatever the user had set manually.
+    LaunchedEffect(mixEnabled) {
+        if (mixEnabled) {
+            crossfadeEnabled = true
+            crossfadeDurationPreference = MIX_SMART_CROSSFADE_SECONDS
+            crossfadeDuration = MIX_SMART_CROSSFADE_SECONDS
+        }
+    }
 
     val playbackSettings = listOf(
         BooleanSetting("Autoplay", "Continue with related music when the queue ends.", AutoplayKey, true, icon = R.drawable.play),
@@ -600,13 +617,31 @@ private fun PlayerAudioDetail(
             }
         }
 
+        item { SettingsLabel("Mix") }
+        item {
+            FigmaGroupedList(modifier = Modifier.padding(horizontal = 18.dp)) {
+                InlineSwitchRow(
+                    title = "Mix",
+                    subtitle = "Automatically blend songs together, like a DJ. Takes over the transition, so manual Crossfade is locked while this is on.",
+                    checked = mixEnabled,
+                    icon = R.drawable.shuffle,
+                    onCheckedChange = { mixEnabled = it },
+                )
+            }
+        }
+
         item { SettingsLabel("Crossfade") }
         item {
             FigmaGroupedList(modifier = Modifier.padding(horizontal = 18.dp)) {
                 InlineSwitchRow(
                     title = "Crossfade",
-                    subtitle = "Blend the end of one track into the next.",
+                    subtitle = if (mixEnabled) {
+                        "Controlled automatically by Mix right now."
+                    } else {
+                        "Blend the end of one track into the next."
+                    },
                     checked = crossfadeEnabled,
+                    enabled = !mixEnabled,
                     icon = R.drawable.graphic_eq,
                     onCheckedChange = { crossfadeEnabled = it },
                 )
@@ -615,13 +650,14 @@ private fun PlayerAudioDetail(
                         FigmaDivider()
                         SliderPreferenceRow(
                             title = "Duration",
-                            subtitle = "How long the transition should overlap.",
+                            subtitle = if (mixEnabled) "Set automatically while Mix is on." else "How long the transition should overlap.",
                             icon = R.drawable.timer,
                             value = crossfadeDuration,
                             onValueChange = { crossfadeDuration = it },
                             onValueChangeFinished = { crossfadeDurationPreference = crossfadeDuration },
                             valueRange = 1f..12f,
                             steps = 10,
+                            enabled = !mixEnabled,
                             valueText = "${crossfadeDuration.roundToInt()} sec",
                         )
                         FigmaDivider()
@@ -1234,11 +1270,13 @@ private fun SliderPreferenceRow(
     valueRange: ClosedFloatingPointRange<Float>,
     valueText: String,
     steps: Int = 0,
+    enabled: Boolean = true,
     onValueChangeFinished: (() -> Unit)? = null,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.5f)
             .padding(horizontal = 16.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -1278,6 +1316,7 @@ private fun SliderPreferenceRow(
                 value = value,
                 onValueChange = onValueChange,
                 onValueChangeFinished = onValueChangeFinished,
+                enabled = enabled,
                 valueRange = valueRange,
                 steps = steps,
                 modifier = Modifier.fillMaxWidth(),

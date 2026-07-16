@@ -102,8 +102,8 @@ android {
         applicationId = applicationIdOverride ?: baseApplicationId
         minSdk = 26
         targetSdk = 36
-        versionCode = 39
-        versionName = "1.1.7"
+        versionCode = 40
+        versionName = "1.1.8"
         resValue("string", "app_name", appNameOverride ?: "DiyyMusic")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
